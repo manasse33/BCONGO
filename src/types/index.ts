@@ -1,19 +1,23 @@
 // User Types
 export interface Role {
-  id: number;
+  id?: number;
   name: string;
-  label: string;
+  label?: string;
   description?: string;
 }
 
 export interface User {
   id: number;
   uuid: string;
-  role_id: number;
+  role_id?: number;
+  role?: Role | string | null;
+  roles?: Array<Role | string>;
+  role_name?: string;
   first_name: string;
   last_name: string;
+  full_name?: string;
   username: string;
-  email: string;
+  email?: string;
   email_verified_at?: string;
   phone?: string;
   avatar?: string;
@@ -24,9 +28,9 @@ export interface User {
   school_level?: string;
   reading_score: number;
   is_active: boolean;
-  is_banned: boolean;
+  is_banned?: boolean;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 // Book Types

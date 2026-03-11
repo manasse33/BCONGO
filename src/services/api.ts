@@ -7,6 +7,7 @@ import type {
   LoginCredentials, 
   RegisterData,
   Genre,
+  Publisher,
   ReadingChallenge,
   Contest,
   ReadingClub,
@@ -47,7 +48,12 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const authHeader =
+      error.config?.headers?.Authorization ??
+      error.config?.headers?.authorization;
+    const hasAuthContext = Boolean(authHeader || localStorage.getItem('auth_token'));
+
+    if (error.response?.status === 401 && hasAuthContext) {
       localStorage.removeItem('auth_token');
       window.location.href = '/login';
     }
@@ -60,20 +66,50 @@ const handleResponse = <T>(response: AxiosResponse<ApiResponse<T>>): T => {
   return response.data.data;
 };
 
+const handleAuthPayload = <T>(response: AxiosResponse<any>): T => {
+  const payload = response.data;
+  if (payload && typeof payload === 'object' && 'data' in payload && payload.data !== undefined) {
+    return payload.data as T;
+  }
+  return payload as T;
+};
+
+const handleFlexiblePayload = <T>(response: AxiosResponse<any>): T => {
+  const payload = response.data;
+  if (payload && typeof payload === 'object' && 'data' in payload && payload.data !== undefined) {
+    return payload.data as T;
+  }
+  return payload as T;
+};
+
 // Auth API
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<{ user: User; token: string }> => {
-    const response = await apiClient.post<ApiResponse<{ user: User; token: string }>>('/auth/login', credentials);
-    const data = handleResponse(response);
-    localStorage.setItem('auth_token', data.token);
-    return data;
+    const response = await apiClient.post('/auth/login', credentials);
+    const payload = handleAuthPayload<any>(response);
+    const user = payload?.user ?? payload?.data?.user;
+    const token = payload?.token ?? payload?.data?.token;
+
+    if (!user || !token) {
+      throw new Error('Invalid login response format');
+    }
+
+    localStorage.setItem('auth_token', token);
+    return { user, token };
   },
 
   register: async (data: RegisterData): Promise<{ user: User; token: string }> => {
-    const response = await apiClient.post<ApiResponse<{ user: User; token: string }>>('/auth/register', data);
-    const result = handleResponse(response);
-    localStorage.setItem('auth_token', result.token);
-    return result;
+    const response = await apiClient.post('/auth/register', data);
+    const payload = handleAuthPayload<any>(response);
+    const user = payload?.user ?? payload?.data?.user;
+    const token = payload?.token ?? payload?.data?.token;
+
+    if (!user || !token) {
+      throw new Error('Invalid register response format');
+    }
+
+    localStorage.setItem('auth_token', token);
+    return { user, token };
   },
 
   logout: async (): Promise<void> => {
@@ -82,15 +118,22 @@ export const authApi = {
   },
 
   me: async (): Promise<User> => {
-    const response = await apiClient.get<ApiResponse<User>>('/auth/me');
-    return handleResponse(response);
+    const response = await apiClient.get('/auth/me');
+    const payload = handleAuthPayload<any>(response);
+    return (payload?.user ?? payload) as User;
   },
 
   refresh: async (): Promise<{ token: string }> => {
-    const response = await apiClient.post<ApiResponse<{ token: string }>>('/auth/refresh');
-    const data = handleResponse(response);
-    localStorage.setItem('auth_token', data.token);
-    return data;
+    const response = await apiClient.post('/auth/refresh');
+    const payload = handleAuthPayload<any>(response);
+    const token = payload?.token ?? payload?.data?.token;
+
+    if (!token) {
+      throw new Error('Invalid refresh response format');
+    }
+
+    localStorage.setItem('auth_token', token);
+    return { token };
   },
 
   forgotPassword: async (email: string): Promise<void> => {
@@ -103,6 +146,24 @@ export const authApi = {
       password, 
       password_confirmation: passwordConfirmation 
     });
+  },
+
+  changePassword: async (currentPassword: string, password: string, passwordConfirmation: string): Promise<void> => {
+    await apiClient.post('/auth/password/change', {
+      current_password: currentPassword,
+      password,
+      password_confirmation: passwordConfirmation,
+    });
+  },
+
+  verifyEmail: async (id: string | number, hash: string, queryParams?: Record<string, string>): Promise<void> => {
+    await apiClient.post(`/auth/email/verify/${id}/${hash}`, null, {
+      params: queryParams,
+    });
+  },
+
+  resendVerificationEmail: async (): Promise<void> => {
+    await apiClient.post('/auth/email/resend');
   },
 
   socialLogin: async (provider: 'google' | 'facebook', token: string): Promise<{ user: User; token: string }> => {
@@ -189,8 +250,22 @@ export const booksApi = {
     await apiClient.post(`/author/books/${id}/submit`);
   },
 
+  withdraw: async (id: number): Promise<void> => {
+    await apiClient.post(`/author/books/${id}/withdraw`);
+  },
+
+  getOwn: async (id: number): Promise<Book> => {
+    const response = await apiClient.get<ApiResponse<Book>>(`/author/books/${id}`);
+    return handleResponse(response);
+  },
+
   getAuthorStats: async (): Promise<Record<string, number>> => {
     const response = await apiClient.get<ApiResponse<Record<string, number>>>('/author/stats');
+    return handleResponse(response);
+  },
+
+  getBookStats: async (id: number): Promise<Record<string, number>> => {
+    const response = await apiClient.get<ApiResponse<Record<string, number>>>(`/author/books/${id}/stats`);
     return handleResponse(response);
   },
 };
@@ -204,6 +279,19 @@ export const genresApi = {
 
   getBySlug: async (slug: string): Promise<{ genre: Genre; books: Book[] }> => {
     const response = await apiClient.get<ApiResponse<{ genre: Genre; books: Book[] }>>(`/genres/${slug}`);
+    return handleResponse(response);
+  },
+};
+
+// Publishers API
+export const publishersApi = {
+  getAll: async (): Promise<Publisher[]> => {
+    const response = await apiClient.get<ApiResponse<Publisher[]>>('/publishers');
+    return handleResponse(response);
+  },
+
+  getBySlug: async (slug: string): Promise<Publisher> => {
+    const response = await apiClient.get<ApiResponse<Publisher>>(`/publishers/${slug}`);
     return handleResponse(response);
   },
 };
@@ -244,6 +332,10 @@ export const userApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return handleResponse(response);
+  },
+
+  deleteAvatar: async (): Promise<void> => {
+    await apiClient.delete('/profile/avatar');
   },
 
   getStats: async (): Promise<Record<string, number>> => {
@@ -480,12 +572,61 @@ export const clubsApi = {
     return handleResponse(response);
   },
 
+  updateMemberRole: async (id: number, userId: number, role: string): Promise<void> => {
+    await apiClient.put(`/clubs/${id}/members/${userId}/role`, { role });
+  },
+
+  removeMember: async (id: number, userId: number): Promise<void> => {
+    await apiClient.delete(`/clubs/${id}/members/${userId}`);
+  },
+
   addBook: async (id: number, bookId: number): Promise<void> => {
     await apiClient.post(`/clubs/${id}/books`, { book_id: bookId });
   },
 
   removeBook: async (id: number, bookId: number): Promise<void> => {
     await apiClient.delete(`/clubs/${id}/books/${bookId}`);
+  },
+};
+
+// Club Discussions API
+export const discussionsApi = {
+  getAll: async (clubId: number): Promise<any[]> => {
+    const response = await apiClient.get<ApiResponse<any[]>>(`/clubs/${clubId}/discussions`);
+    return handleResponse(response);
+  },
+
+  create: async (clubId: number, data: { title: string; content: string; book_id?: number }): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/clubs/${clubId}/discussions`, data);
+    return handleResponse(response);
+  },
+
+  getById: async (clubId: number, discussionId: number): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>(`/clubs/${clubId}/discussions/${discussionId}`);
+    return handleResponse(response);
+  },
+
+  update: async (clubId: number, discussionId: number, data: { title?: string; content?: string }): Promise<any> => {
+    const response = await apiClient.put<ApiResponse<any>>(`/clubs/${clubId}/discussions/${discussionId}`, data);
+    return handleResponse(response);
+  },
+
+  delete: async (clubId: number, discussionId: number): Promise<void> => {
+    await apiClient.delete(`/clubs/${clubId}/discussions/${discussionId}`);
+  },
+
+  createReply: async (clubId: number, discussionId: number, data: { content: string }): Promise<any> => {
+    const response = await apiClient.post<ApiResponse<any>>(`/clubs/${clubId}/discussions/${discussionId}/replies`, data);
+    return handleResponse(response);
+  },
+
+  updateReply: async (clubId: number, discussionId: number, replyId: number, data: { content: string }): Promise<any> => {
+    const response = await apiClient.put<ApiResponse<any>>(`/clubs/${clubId}/discussions/${discussionId}/replies/${replyId}`, data);
+    return handleResponse(response);
+  },
+
+  deleteReply: async (clubId: number, discussionId: number, replyId: number): Promise<void> => {
+    await apiClient.delete(`/clubs/${clubId}/discussions/${discussionId}/replies/${replyId}`);
   },
 };
 
@@ -523,6 +664,20 @@ export const challengesApi = {
     const response = await apiClient.get<ApiResponse<any[]>>(`/challenges/${id}/leaderboard`);
     return handleResponse(response);
   },
+
+  create: async (data: Partial<ReadingChallenge>): Promise<ReadingChallenge> => {
+    const response = await apiClient.post<ApiResponse<ReadingChallenge>>('/admin/challenges', data);
+    return handleResponse(response);
+  },
+
+  update: async (id: number, data: Partial<ReadingChallenge>): Promise<ReadingChallenge> => {
+    const response = await apiClient.put<ApiResponse<ReadingChallenge>>(`/admin/challenges/${id}`, data);
+    return handleResponse(response);
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/admin/challenges/${id}`);
+  },
 };
 
 // Contests API
@@ -550,6 +705,20 @@ export const contestsApi = {
   getMySubmissions: async (): Promise<ContestSubmission[]> => {
     const response = await apiClient.get<ApiResponse<ContestSubmission[]>>('/contests/my');
     return handleResponse(response);
+  },
+
+  getMySubmissionById: async (id: number): Promise<ContestSubmission> => {
+    const response = await apiClient.get<ApiResponse<ContestSubmission>>(`/contests/my/${id}`);
+    return handleResponse(response);
+  },
+
+  updateMySubmission: async (id: number, data: Partial<ContestSubmission>): Promise<ContestSubmission> => {
+    const response = await apiClient.put<ApiResponse<ContestSubmission>>(`/contests/my/${id}`, data);
+    return handleResponse(response);
+  },
+
+  deleteMySubmission: async (id: number): Promise<void> => {
+    await apiClient.delete(`/contests/my/${id}`);
   },
 
   vote: async (submissionId: number): Promise<void> => {
@@ -625,6 +794,41 @@ export const recommendationsApi = {
   },
 };
 
+// Account Settings API
+export const settingsApi = {
+  get: async (): Promise<Record<string, any>> => {
+    const response = await apiClient.get('/settings');
+    return handleFlexiblePayload<Record<string, any>>(response);
+  },
+
+  updateNotifications: async (data: Record<string, any>): Promise<Record<string, any>> => {
+    const response = await apiClient.put('/settings/notifications', data);
+    return handleFlexiblePayload<Record<string, any>>(response);
+  },
+
+  updateReadingPreferences: async (data: Record<string, any>): Promise<Record<string, any>> => {
+    const response = await apiClient.put('/settings/reading-preferences', data);
+    return handleFlexiblePayload<Record<string, any>>(response);
+  },
+
+  updatePrivacy: async (data: Record<string, any>): Promise<Record<string, any>> => {
+    const response = await apiClient.put('/settings/privacy', data);
+    return handleFlexiblePayload<Record<string, any>>(response);
+  },
+
+  deleteAccount: async (): Promise<void> => {
+    await apiClient.delete('/settings/account');
+  },
+};
+
+// Streaks API
+export const streaksApi = {
+  getMyStreak: async (): Promise<Record<string, any>> => {
+    const response = await apiClient.get('/streaks');
+    return handleFlexiblePayload<Record<string, any>>(response);
+  },
+};
+
 // Downloads API
 export const downloadsApi = {
   download: async (slug: string, format: 'pdf' | 'epub' | 'audio'): Promise<{ download_url: string }> => {
@@ -642,6 +846,184 @@ export const downloadsApi = {
 export const reportsApi = {
   create: async (data: { reportable_type: string; reportable_id: number; reason: string; description?: string }): Promise<void> => {
     await apiClient.post('/reports', data);
+  },
+};
+
+// Admin API
+export const adminApi = {
+  stats: {
+    getOverview: async (): Promise<Record<string, any>> => {
+      const response = await apiClient.get('/admin/stats/overview');
+      return handleFlexiblePayload<Record<string, any>>(response);
+    },
+    getReadings: async (): Promise<Record<string, any>> => {
+      const response = await apiClient.get('/admin/stats/readings');
+      return handleFlexiblePayload<Record<string, any>>(response);
+    },
+    getUsers: async (): Promise<Record<string, any>> => {
+      const response = await apiClient.get('/admin/stats/users');
+      return handleFlexiblePayload<Record<string, any>>(response);
+    },
+    getBooks: async (): Promise<Record<string, any>> => {
+      const response = await apiClient.get('/admin/stats/books');
+      return handleFlexiblePayload<Record<string, any>>(response);
+    },
+    getActivityLogs: async (): Promise<any[]> => {
+      const response = await apiClient.get('/admin/activity-logs');
+      return handleFlexiblePayload<any[]>(response);
+    },
+    getSearchLogs: async (): Promise<any[]> => {
+      const response = await apiClient.get('/admin/search-logs');
+      return handleFlexiblePayload<any[]>(response);
+    },
+  },
+
+  books: {
+    getAll: async (): Promise<Book[]> => {
+      const response = await apiClient.get('/admin/books');
+      return handleFlexiblePayload<Book[]>(response);
+    },
+    getPending: async (): Promise<Book[]> => {
+      const response = await apiClient.get('/admin/books/pending');
+      return handleFlexiblePayload<Book[]>(response);
+    },
+    create: async (data: Partial<Book>): Promise<Book> => {
+      const response = await apiClient.post('/admin/books', data);
+      return handleFlexiblePayload<Book>(response);
+    },
+    update: async (id: number, data: Partial<Book>): Promise<Book> => {
+      const response = await apiClient.put(`/admin/books/${id}`, data);
+      return handleFlexiblePayload<Book>(response);
+    },
+    delete: async (id: number): Promise<void> => {
+      await apiClient.delete(`/admin/books/${id}`);
+    },
+    approve: async (id: number): Promise<void> => {
+      await apiClient.post(`/admin/books/${id}/approve`);
+    },
+    reject: async (id: number): Promise<void> => {
+      await apiClient.post(`/admin/books/${id}/reject`);
+    },
+    feature: async (id: number): Promise<void> => {
+      await apiClient.post(`/admin/books/${id}/feature`);
+    },
+  },
+
+  users: {
+    getAll: async (): Promise<User[]> => {
+      const response = await apiClient.get('/admin/users');
+      return handleFlexiblePayload<User[]>(response);
+    },
+    getById: async (id: number): Promise<User> => {
+      const response = await apiClient.get(`/admin/users/${id}`);
+      return handleFlexiblePayload<User>(response);
+    },
+    update: async (id: number, data: Partial<User>): Promise<User> => {
+      const response = await apiClient.put(`/admin/users/${id}`, data);
+      return handleFlexiblePayload<User>(response);
+    },
+    changeRole: async (id: number, role: string): Promise<void> => {
+      await apiClient.put(`/admin/users/${id}/role`, { role });
+    },
+    ban: async (id: number): Promise<void> => {
+      await apiClient.post(`/admin/users/${id}/ban`);
+    },
+    unban: async (id: number): Promise<void> => {
+      await apiClient.post(`/admin/users/${id}/unban`);
+    },
+    delete: async (id: number): Promise<void> => {
+      await apiClient.delete(`/admin/users/${id}`);
+    },
+  },
+
+  contests: {
+    getAll: async (): Promise<Contest[]> => {
+      const response = await apiClient.get('/admin/contests');
+      return handleFlexiblePayload<Contest[]>(response);
+    },
+    create: async (data: Partial<Contest>): Promise<Contest> => {
+      const response = await apiClient.post('/admin/contests', data);
+      return handleFlexiblePayload<Contest>(response);
+    },
+    update: async (id: number, data: Partial<Contest>): Promise<Contest> => {
+      const response = await apiClient.put(`/admin/contests/${id}`, data);
+      return handleFlexiblePayload<Contest>(response);
+    },
+    delete: async (id: number): Promise<void> => {
+      await apiClient.delete(`/admin/contests/${id}`);
+    },
+    open: async (id: number): Promise<void> => {
+      await apiClient.post(`/admin/contests/${id}/open`);
+    },
+    close: async (id: number): Promise<void> => {
+      await apiClient.post(`/admin/contests/${id}/close`);
+    },
+    announceResults: async (id: number): Promise<void> => {
+      await apiClient.post(`/admin/contests/${id}/announce-results`);
+    },
+    getSubmissions: async (id: number): Promise<ContestSubmission[]> => {
+      const response = await apiClient.get(`/admin/contests/${id}/submissions`);
+      return handleFlexiblePayload<ContestSubmission[]>(response);
+    },
+    reviewSubmission: async (submissionId: number, data: Record<string, any>): Promise<void> => {
+      await apiClient.put(`/admin/contests/submissions/${submissionId}/review`, data);
+    },
+  },
+
+  reports: {
+    getAll: async (): Promise<any[]> => {
+      const response = await apiClient.get('/admin/reports');
+      return handleFlexiblePayload<any[]>(response);
+    },
+    getById: async (id: number): Promise<any> => {
+      const response = await apiClient.get(`/admin/reports/${id}`);
+      return handleFlexiblePayload<any>(response);
+    },
+    handle: async (id: number, data: Record<string, any>): Promise<void> => {
+      await apiClient.put(`/admin/reports/${id}/handle`, data);
+    },
+    reject: async (id: number, data?: Record<string, any>): Promise<void> => {
+      await apiClient.put(`/admin/reports/${id}/reject`, data ?? {});
+    },
+  },
+
+  genres: {
+    create: async (data: Partial<Genre>): Promise<Genre> => {
+      const response = await apiClient.post('/admin/genres', data);
+      return handleFlexiblePayload<Genre>(response);
+    },
+    update: async (id: number, data: Partial<Genre>): Promise<Genre> => {
+      const response = await apiClient.put(`/admin/genres/${id}`, data);
+      return handleFlexiblePayload<Genre>(response);
+    },
+    delete: async (id: number): Promise<void> => {
+      await apiClient.delete(`/admin/genres/${id}`);
+    },
+  },
+
+  publishers: {
+    create: async (data: Partial<Publisher>): Promise<Publisher> => {
+      const response = await apiClient.post('/admin/publishers', data);
+      return handleFlexiblePayload<Publisher>(response);
+    },
+    update: async (id: number, data: Partial<Publisher>): Promise<Publisher> => {
+      const response = await apiClient.put(`/admin/publishers/${id}`, data);
+      return handleFlexiblePayload<Publisher>(response);
+    },
+    delete: async (id: number): Promise<void> => {
+      await apiClient.delete(`/admin/publishers/${id}`);
+    },
+  },
+
+  settings: {
+    get: async (): Promise<Record<string, any>> => {
+      const response = await apiClient.get('/admin/settings');
+      return handleFlexiblePayload<Record<string, any>>(response);
+    },
+    update: async (data: Record<string, any>): Promise<Record<string, any>> => {
+      const response = await apiClient.put('/admin/settings', data);
+      return handleFlexiblePayload<Record<string, any>>(response);
+    },
   },
 };
 

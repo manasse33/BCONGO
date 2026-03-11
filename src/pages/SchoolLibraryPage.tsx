@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  BookOpen, 
-  FileText, 
-  ClipboardList, 
-  HelpCircle, 
+import {
+  BookOpen,
+  FileText,
+  ClipboardList,
+  HelpCircle,
   Video,
   Download,
   ChevronLeft,
@@ -17,51 +17,67 @@ import {
   BookMarked,
   Languages,
   TrendingUp,
-  Monitor
+  Monitor,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { schoolLevels, subjects, books } from '@/data/mockData';
+import type { Book, Genre } from '@/types';
+import { booksApi, genresApi } from '@/services/api';
 
 const quickAccessItems = [
   { icon: BookOpen, label: 'Tous les Manuels', href: '#' },
-  { icon: ClipboardList, label: 'Guides d\'Étude', href: '#' },
-  { icon: FileText, label: 'Fiches de Révision', href: '#' },
+  { icon: ClipboardList, label: "Guides d'Etude", href: '#' },
+  { icon: FileText, label: 'Fiches de Revision', href: '#' },
 ];
 
 const studyMaterials = [
   { icon: FileText, label: 'Anciens Examens', color: 'bg-blue-100 text-blue-600' },
-  { icon: ClipboardList, label: 'Corrigés Types', color: 'bg-green-100 text-green-600' },
+  { icon: ClipboardList, label: 'Corriges Types', color: 'bg-green-100 text-green-600' },
   { icon: HelpCircle, label: 'Questions Types', color: 'bg-purple-100 text-purple-600' },
-  { icon: Video, label: 'Tutoriels Vidéo', color: 'bg-red-100 text-red-600' },
+  { icon: Video, label: 'Tutoriels Video', color: 'bg-red-100 text-red-600' },
 ];
 
 const subjectIcons: Record<string, any> = {
-  'Mathématiques': Calculator,
-  'Français': BookMarked,
-  'Histoire-Géographie': Globe,
-  'SVT': FlaskConical,
-  'Physique-Chimie': Atom,
-  'Philosophie': BookOpen,
-  'Anglais': Languages,
-  'Économie': TrendingUp,
-  'Informatique': Monitor,
-  'Éducation Civique': GraduationCap,
+  Mathematiques: Calculator,
+  Francais: BookMarked,
+  Histoire: Globe,
+  SVT: FlaskConical,
+  Physique: Atom,
+  Philosophie: BookOpen,
+  Anglais: Languages,
+  Economie: TrendingUp,
+  Informatique: Monitor,
+  Education: GraduationCap,
 };
 
-const examPapers = [
-  { title: 'Bac 2023 - Session Normale', year: '2023', format: 'PDF', downloads: 1250 },
-  { title: 'Bac 2023 - Session de Rattrapage', year: '2023', format: 'PDF', downloads: 890 },
-  { title: 'Bac 2022 - Session Normale', year: '2022', format: 'PDF', downloads: 2100 },
-  { title: 'Brevet 2023', year: '2023', format: 'PDF', downloads: 1560 },
-];
-
 export default function SchoolLibraryPage() {
-  const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
-  // Selected subject for future implementation
-  // const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [schoolBooks, setSchoolBooks] = useState<Book[]>([]);
+  const [genres, setGenres] = useState<Genre[]>([]);
 
-  const schoolBooks = books.filter(book => book.type === 'scolaire');
+  useEffect(() => {
+    const loadSchoolData = async () => {
+      try {
+        const [bookData, genreData] = await Promise.all([booksApi.getSchool(), genresApi.getAll()]);
+        setSchoolBooks(bookData);
+        setGenres(genreData);
+      } catch (error) {
+        setSchoolBooks([]);
+        setGenres([]);
+      }
+    };
+
+    loadSchoolData();
+  }, []);
+
+  const filteredBooks = selectedGenre
+    ? schoolBooks.filter((book) => (book.genres || []).some((genre) => genre.slug === selectedGenre))
+    : schoolBooks;
+
+  const examPapers = filteredBooks
+    .slice()
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 4);
 
   return (
     <div className="min-h-screen bg-cream">
@@ -76,16 +92,14 @@ export default function SchoolLibraryPage() {
             <div className="flex items-center gap-2 text-sm text-gray-medium mb-2">
               <Link to="/" className="hover:text-forest">Accueil</Link>
               <span>/</span>
-              <span className="text-forest">Bibliothèque Scolaire</span>
+              <span className="text-forest">Bibliotheque Scolaire</span>
             </div>
             <div className="flex items-center justify-between">
-              <h1 className="font-serif text-3xl lg:text-4xl font-bold text-gray-dark">
-                Bibliothèque Scolaire
-              </h1>
+              <h1 className="font-serif text-3xl lg:text-4xl font-bold text-gray-dark">Bibliotheque Scolaire</h1>
               <Button variant="outline" asChild>
                 <Link to="/" className="flex items-center gap-2">
                   <ChevronLeft className="w-4 h-4" />
-                  Retour à l'accueil
+                  Retour a l'accueil
                 </Link>
               </Button>
             </div>
@@ -102,7 +116,7 @@ export default function SchoolLibraryPage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <h3 className="font-semibold text-gray-dark mb-4">Accès Rapide</h3>
+            <h3 className="font-semibold text-gray-dark mb-4">Acces Rapide</h3>
             <div className="space-y-3">
               {quickAccessItems.map((item) => (
                 <a
@@ -119,36 +133,36 @@ export default function SchoolLibraryPage() {
             </div>
           </motion.div>
 
-          {/* Grade Filter */}
+          {/* Genre Filter */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
             className="lg:col-span-2"
           >
-            <h3 className="font-semibold text-gray-dark mb-4">Filtrer par Niveau</h3>
+            <h3 className="font-semibold text-gray-dark mb-4">Filtrer par Matiere</h3>
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => setSelectedLevel(null)}
+                onClick={() => setSelectedGenre(null)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  selectedLevel === null
+                  selectedGenre === null
                     ? 'bg-forest text-white'
                     : 'bg-white text-gray-dark border border-gray-light hover:border-forest'
                 }`}
               >
                 Tous
               </button>
-              {schoolLevels.map((level) => (
+              {genres.slice(0, 12).map((genre) => (
                 <button
-                  key={level.id}
-                  onClick={() => setSelectedLevel(level.name)}
+                  key={genre.id}
+                  onClick={() => setSelectedGenre(genre.slug)}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    selectedLevel === level.name
+                    selectedGenre === genre.slug
                       ? 'bg-forest text-white'
                       : 'bg-white text-gray-dark border border-gray-light hover:border-forest'
                   }`}
                 >
-                  {level.name}
+                  {genre.name}
                 </button>
               ))}
             </div>
@@ -162,9 +176,7 @@ export default function SchoolLibraryPage() {
           transition={{ duration: 0.5, delay: 0.3 }}
           className="mb-10"
         >
-          <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">
-            Matériaux d'Étude
-          </h3>
+          <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">Materiaux d'Etude</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {studyMaterials.map((item) => (
               <button
@@ -187,41 +199,41 @@ export default function SchoolLibraryPage() {
           transition={{ duration: 0.5, delay: 0.4 }}
           className="mb-10"
         >
-          <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">
-            Livres par Matière
-          </h3>
+          <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">Livres par Matiere</h3>
           <div className="space-y-6">
-            {subjects.slice(0, 5).map((subject, index) => {
-              const Icon = subjectIcons[subject.name] || BookOpen;
-              const subjectBooks = schoolBooks.filter((_, i) => i % 5 === index).slice(0, 3);
-              
+            {genres.slice(0, 5).map((genre, index) => {
+              const Icon = subjectIcons[genre.name.split(' ')[0]] || BookOpen;
+              const subjectBooks = filteredBooks
+                .filter((book) => (book.genres || []).some((bookGenre) => bookGenre.id === genre.id))
+                .slice(0, 3);
+
+              const fallbackBooks = subjectBooks.length > 0 ? subjectBooks : filteredBooks.filter((_, i) => i % 5 === index).slice(0, 3);
+
               return (
-                <div key={subject.id} className="bg-white rounded-xl border border-gray-light p-6">
+                <div key={genre.id} className="bg-white rounded-xl border border-gray-light p-6">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-10 h-10 bg-forest/10 rounded-lg flex items-center justify-center">
                       <Icon className="w-5 h-5 text-forest" />
                     </div>
-                    <h4 className="font-serif text-xl font-semibold text-gray-dark">{subject.name}</h4>
+                    <h4 className="font-serif text-xl font-semibold text-gray-dark">{genre.name}</h4>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {subjectBooks.length > 0 ? subjectBooks.map((book) => (
-                      <div key={book.id} className="flex items-center gap-3 p-3 bg-cream rounded-lg">
-                        <img
-                          src={book.cover_image}
-                          alt={book.title}
-                          className="w-12 h-16 object-cover rounded"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm text-gray-dark line-clamp-1">{book.title}</p>
-                          <p className="text-xs text-gray-medium">{book.pages_count} pages</p>
+                    {fallbackBooks.length > 0 ? (
+                      fallbackBooks.map((book) => (
+                        <div key={book.id} className="flex items-center gap-3 p-3 bg-cream rounded-lg">
+                          <img src={book.cover_image} alt={book.title} className="w-12 h-16 object-cover rounded" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm text-gray-dark line-clamp-1">{book.title}</p>
+                            <p className="text-xs text-gray-medium">{book.pages_count} pages</p>
+                          </div>
+                          <Button size="sm" variant="ghost" className="text-forest">
+                            <Download className="w-4 h-4" />
+                          </Button>
                         </div>
-                        <Button size="sm" variant="ghost" className="text-forest">
-                          <Download className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    )) : (
-                      <p className="text-sm text-gray-medium col-span-3">Aucun livre disponible pour cette matière</p>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-medium col-span-3">Aucun livre disponible pour cette matiere</p>
                     )}
                   </div>
                 </div>
@@ -237,16 +249,12 @@ export default function SchoolLibraryPage() {
           transition={{ duration: 0.5, delay: 0.5 }}
           className="mb-10"
         >
-          <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">
-            Archives des Examens
-          </h3>
+          <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">Archives des Examens</h3>
           <div className="bg-white rounded-xl border border-gray-light overflow-hidden">
             {examPapers.map((paper, index) => (
               <div
-                key={paper.title}
-                className={`flex items-center justify-between p-4 ${
-                  index !== examPapers.length - 1 ? 'border-b border-gray-light' : ''
-                }`}
+                key={paper.id}
+                className={`flex items-center justify-between p-4 ${index !== examPapers.length - 1 ? 'border-b border-gray-light' : ''}`}
               >
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-forest/10 rounded-lg flex items-center justify-center">
@@ -255,19 +263,17 @@ export default function SchoolLibraryPage() {
                   <div>
                     <p className="font-medium text-gray-dark">{paper.title}</p>
                     <div className="flex items-center gap-2 text-sm text-gray-medium">
-                      <span>{paper.year}</span>
-                      <span>•</span>
-                      <Badge variant="secondary" className="text-xs">{paper.format}</Badge>
+                      <span>{new Date(paper.created_at).getFullYear()}</span>
+                      <span>�</span>
+                      <Badge variant="secondary" className="text-xs">PDF</Badge>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-medium hidden sm:block">
-                    {paper.downloads} téléchargements
-                  </span>
+                  <span className="text-sm text-gray-medium hidden sm:block">{paper.download_count} telechargements</span>
                   <Button size="sm" className="bg-forest hover:bg-forest-dark text-white">
                     <Download className="w-4 h-4 mr-1" />
-                    Télécharger
+                    Telecharger
                   </Button>
                 </div>
               </div>
@@ -281,16 +287,14 @@ export default function SchoolLibraryPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.6 }}
         >
-          <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">
-            Fiches de Révision
-          </h3>
+          <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">Fiches de Revision</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {['Histoire - La colonisation', 'Mathématiques - Algèbre', 'SVT - La photosynthèse', 'Français - La dissertation'].map((title) => (
+            {filteredBooks.slice(0, 4).map((book) => (
               <div
-                key={title}
+                key={book.id}
                 className="bg-white rounded-xl border border-gray-light p-4 hover:border-gold hover:shadow-light transition-all"
               >
-                <p className="font-medium text-gray-dark mb-3">{title}</p>
+                <p className="font-medium text-gray-dark mb-3">{book.title}</p>
                 <Button size="sm" variant="outline" className="w-full border-forest text-forest hover:bg-forest hover:text-white">
                   Voir la fiche
                 </Button>

@@ -18,11 +18,19 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { books, authors, challenges } from '@/data/mockData';
 import type { Book, User, ReadingChallenge } from '@/types';
+import { booksApi, challengesApi, contestsApi, leaderboardApi } from '@/services/api';
+import { canAccessAuthorSpace } from '@/lib/rbac';
 
 interface HomePageProps {
   user: User | null;
+}
+
+interface HomeStats {
+  books: number;
+  readers: number;
+  authors: number;
+  contests: number;
 }
 
 // African Pattern SVG Component
@@ -210,12 +218,17 @@ const ChallengeBanner = ({ challenge }: { challenge: ReadingChallenge }) => (
 );
 
 // Stats Section Component
-const StatsSection = () => {
-  const stats = [
-    { icon: BookOpen, value: '10,000+', label: 'Livres Disponibles' },
-    { icon: Users, value: '5,000+', label: 'Lecteurs Actifs' },
-    { icon: TrendingUp, value: '500+', label: 'Auteurs' },
-    { icon: Award, value: '50+', label: 'Concours Organisés' },
+const formatCount = (value: unknown) => {
+  const safeValue = Number.isFinite(Number(value)) ? Number(value) : 0;
+  return `${safeValue.toLocaleString('fr-FR')}+`;
+};
+
+const StatsSection = ({ stats }: { stats: HomeStats }) => {
+  const displayStats = [
+    { icon: BookOpen, value: formatCount(stats.books), label: 'Livres Disponibles' },
+    { icon: Users, value: formatCount(stats.readers), label: 'Lecteurs Actifs' },
+    { icon: TrendingUp, value: formatCount(stats.authors), label: 'Auteurs' },
+    { icon: Award, value: formatCount(stats.contests), label: 'Concours Organises' },
   ];
 
   return (
@@ -225,7 +238,7 @@ const StatsSection = () => {
       </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-          {stats.map((stat, index) => (
+          {displayStats.map((stat, index) => (
             <motion.div
               key={stat.label}
               initial={{ opacity: 0, y: 30 }}
@@ -237,9 +250,7 @@ const StatsSection = () => {
               <div className="w-14 h-14 mx-auto bg-gold/10 rounded-full flex items-center justify-center mb-4">
                 <stat.icon className="w-7 h-7 text-gold" />
               </div>
-              <p className="font-serif text-3xl lg:text-5xl font-bold text-white mb-2 tracking-tight">
-                {stat.value}
-              </p>
+              <p className="font-serif text-3xl lg:text-5xl font-bold text-white mb-2 tracking-tight">{stat.value}</p>
               <p className="text-white/70 font-medium text-sm uppercase tracking-wider">{stat.label}</p>
             </motion.div>
           ))}
@@ -255,12 +266,60 @@ export default function HomePage({ user }: HomePageProps) {
   const [featuredBooks, setFeaturedBooks] = useState<Book[]>([]);
   const [trendingAuthors, setTrendingAuthors] = useState<User[]>([]);
   const [activeChallenge, setActiveChallenge] = useState<ReadingChallenge | null>(null);
+  const [homeStats, setHomeStats] = useState<HomeStats>({
+    books: 0,
+    readers: 0,
+    authors: 0,
+    contests: 0,
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setFeaturedBooks(books.filter(b => b.is_featured).slice(0, 4));
-    setTrendingAuthors(authors.slice(0, 2));
-    setActiveChallenge(challenges[0]);
+    const loadHomepageData = async () => {
+      const hasToken = Boolean(localStorage.getItem('auth_token'));
+
+      try {
+        const [featured, newArrivals, freeBooks, authorLeaderboard, allBooks, readerLeaderboard, bookLeaderboard, contests] = await Promise.all([
+          booksApi.getFeatured(),
+          booksApi.getNewArrivals(),
+          booksApi.getFree(),
+          leaderboardApi.getAuthors(),
+          booksApi.getAll({ page: 1, per_page: 1 }),
+          leaderboardApi.getReaders(),
+          leaderboardApi.getBooks(),
+          contestsApi.getAll(),
+        ]);
+
+        const activeChallenges = hasToken ? await challengesApi.getActive() : [];
+
+        const authorUsers = authorLeaderboard
+          .map((entry: any) => entry?.user)
+          .filter((author: User | undefined): author is User => Boolean(author))
+          .slice(0, 2);
+
+        setFeaturedBooks([...featured, ...newArrivals, ...freeBooks].slice(0, 4));
+        setTrendingAuthors(authorUsers);
+        setActiveChallenge(activeChallenges[0] ?? null);
+        setHomeStats({
+          books: Number(allBooks?.total ?? 0),
+          readers: Number(Math.max(readerLeaderboard?.length ?? 0, bookLeaderboard?.length ?? 0)),
+          authors: Number(authorLeaderboard?.length ?? 0),
+          contests: Number(contests?.length ?? 0),
+        });
+      } catch (error) {
+        setFeaturedBooks([]);
+        setTrendingAuthors([]);
+        setActiveChallenge(null);
+        setHomeStats({
+          books: 0,
+          readers: 0,
+          authors: 0,
+          contests: 0,
+        });
+      }
+    };
+
+    loadHomepageData();
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -308,9 +367,9 @@ export default function HomePage({ user }: HomePageProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
           >
-            <Badge className="bg-forest/10 text-forest border-none mb-6 px-4 py-1.5 text-sm font-medium">
+            {/* <Badge className="bg-forest/10 text-forest border-none mb-6 px-4 py-1.5 text-sm font-medium">
               ✨ La 1ère bibliothèque numérique du Congo
-            </Badge>
+            </Badge> */}
             <h1 className="font-serif text-5xl sm:text-6xl lg:text-7xl font-extrabold text-gray-900 mb-6 leading-[1.1] tracking-tight">
               Votre Passerelle vers <span className="text-transparent bg-clip-text bg-gradient-to-r from-forest to-green-600">le Savoir</span>
             </h1>
@@ -506,7 +565,7 @@ export default function HomePage({ user }: HomePageProps) {
       </section>
 
       {/* Stats Section */}
-      <StatsSection />
+      <StatsSection stats={homeStats} />
 
       {/* CTA Section */}
       <section className="py-24 bg-white relative">
@@ -542,7 +601,7 @@ export default function HomePage({ user }: HomePageProps) {
                   className="w-full sm:w-auto bg-gold hover:bg-yellow-500 text-gray-900 font-bold px-10 py-6 rounded-xl text-lg shadow-xl shadow-gold/20 transition-all hover:scale-105"
                   asChild
                 >
-                  <Link to={user ? "/author/dashboard" : "/register"}>
+                  <Link to={canAccessAuthorSpace(user) ? "/author/dashboard" : user ? "/profile" : "/register"}>
                     Commencer à Écrire
                   </Link>
                 </Button>
@@ -562,3 +621,4 @@ export default function HomePage({ user }: HomePageProps) {
     </div>
   );
 }
+

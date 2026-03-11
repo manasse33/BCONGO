@@ -1,62 +1,110 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  Search, 
-  BookOpen, 
+import {
+  Search,
+  BookOpen,
   X,
   Clock,
-  TrendingUp
+  TrendingUp,
 } from 'lucide-react';
-import { books, authors, genres } from '@/data/mockData';
-// Type imports for reference
-// import type { Book, User } from '@/types';
-
-const recentSearches = [
-  'Roman africain',
-  'Poésie congolaise',
-  'Histoire du Congo',
-  'Mathématiques 3ème',
-];
-
-const trendingSearches = [
-  'Le Cœur des Ténèbres',
-  'Contes africains',
-  'Littérature jeunesse',
-  'Science',
-];
+import type { Book, User, Genre, Publisher } from '@/types';
+import { booksApi, genresApi, leaderboardApi, publishersApi, searchApi } from '@/services/api';
 
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState(searchParams.get('q') || '');
-  const [results, setResults] = useState<{ books: typeof books; authors: typeof authors }>({ books: [], authors: [] });
+  const [results, setResults] = useState<{ books: Book[]; authors: User[] }>({ books: [], authors: [] });
+  const [genres, setGenres] = useState<Genre[]>([]);
+  const [publishers, setPublishers] = useState<Publisher[]>([]);
+  const [allAuthors, setAllAuthors] = useState<User[]>([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [trendingSearches, setTrendingSearches] = useState<string[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
-    if (query) {
-      setIsSearching(true);
-      // Simulate search
-      const timeout = setTimeout(() => {
-        const bookResults = books.filter(book =>
-          book.title.toLowerCase().includes(query.toLowerCase()) ||
-          book.author_name.toLowerCase().includes(query.toLowerCase())
-        );
-        const authorResults = authors.filter(author =>
-          `${author.first_name} ${author.last_name}`.toLowerCase().includes(query.toLowerCase())
-        );
-        setResults({ books: bookResults, authors: authorResults });
-        setIsSearching(false);
-      }, 300);
-      return () => clearTimeout(timeout);
-    } else {
-      setResults({ books: [], authors: [] });
+    const loadInitialData = async () => {
+      try {
+        const [genreData, publisherData, authorLeaderboard, trendingBooks] = await Promise.all([
+          genresApi.getAll(),
+          publishersApi.getAll(),
+          leaderboardApi.getAuthors(),
+          booksApi.getTrending(),
+        ]);
+
+        const mappedAuthors = authorLeaderboard
+          .map((entry: any) => entry?.user)
+          .filter((author: User | undefined): author is User => Boolean(author));
+
+        setGenres(genreData);
+        setPublishers(publisherData);
+        setAllAuthors(mappedAuthors);
+        setTrendingSearches(trendingBooks.map((book) => book.title).slice(0, 6));
+      } catch (error) {
+        setGenres([]);
+        setPublishers([]);
+        setAllAuthors([]);
+        setTrendingSearches([]);
+      }
+    };
+
+    const storedRecent = localStorage.getItem('recent_searches');
+    if (storedRecent) {
+      try {
+        const parsedRecent = JSON.parse(storedRecent);
+        if (Array.isArray(parsedRecent)) {
+          setRecentSearches(parsedRecent.slice(0, 8));
+        }
+      } catch (error) {
+        setRecentSearches([]);
+      }
     }
-  }, [query]);
+
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    const runSearch = async () => {
+      if (!query) {
+        setResults({ books: [], authors: [] });
+        setSuggestions([]);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const [books, suggestionData] = await Promise.all([
+          searchApi.search(query),
+          searchApi.getSuggestions(query),
+        ]);
+        const normalizedQuery = query.toLowerCase();
+        const authorResults = allAuthors.filter((author) =>
+          `${author.first_name} ${author.last_name}`.toLowerCase().includes(normalizedQuery) ||
+          author.username.toLowerCase().includes(normalizedQuery)
+        );
+        setResults({ books, authors: authorResults });
+        setSuggestions(suggestionData.slice(0, 6));
+      } catch (error) {
+        setResults({ books: [], authors: [] });
+        setSuggestions([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    runSearch();
+  }, [query, allAuthors]);
 
   const handleSearch = (value: string) => {
     setQuery(value);
     if (value) {
       setSearchParams({ q: value });
+      setRecentSearches((prev) => {
+        const next = [value, ...prev.filter((item) => item !== value)].slice(0, 8);
+        localStorage.setItem('recent_searches', JSON.stringify(next));
+        return next;
+      });
     } else {
       setSearchParams({});
     }
@@ -103,6 +151,23 @@ export default function SearchPage() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
+            {suggestions.length > 0 && (
+              <div className="mb-6">
+                <h2 className="font-semibold text-gray-dark mb-3">Suggestions</h2>
+                <div className="flex flex-wrap gap-2">
+                  {suggestions.map((term) => (
+                    <button
+                      key={term}
+                      onClick={() => handleSearch(term)}
+                      className="px-3 py-1.5 rounded-full bg-white border border-gray-light text-sm text-gray-dark hover:border-forest"
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {isSearching ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forest" />
@@ -173,10 +238,10 @@ export default function SearchPage() {
                   <div className="text-center py-12">
                     <Search className="w-16 h-16 text-gray-light mx-auto mb-4" />
                     <h3 className="font-serif text-xl font-semibold text-gray-dark mb-2">
-                      Aucun résultat trouvé
+                      Aucun resultat trouve
                     </h3>
                     <p className="text-gray-medium">
-                      Essayez avec d'autres mots-clés
+                      Essayez avec d'autres mots-cles
                     </p>
                   </div>
                 )}
@@ -194,7 +259,7 @@ export default function SearchPage() {
             <div className="mb-8">
               <div className="flex items-center gap-2 mb-4">
                 <Clock className="w-5 h-5 text-gray-medium" />
-                <h2 className="font-semibold text-gray-dark">Recherches Récentes</h2>
+                <h2 className="font-semibold text-gray-dark">Recherches Recentes</h2>
               </div>
               <div className="flex flex-wrap gap-2">
                 {recentSearches.map((term) => (
@@ -240,6 +305,23 @@ export default function SearchPage() {
                   >
                     <BookOpen className="w-6 h-6 text-forest mb-2" />
                     <p className="font-medium text-gray-dark">{genre.name}</p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Browse by Publisher */}
+            <div className="mt-8">
+              <h2 className="font-semibold text-gray-dark mb-4">Parcourir par Editeur</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {publishers.slice(0, 6).map((publisher) => (
+                  <Link
+                    key={publisher.id}
+                    to={`/library?publisher=${publisher.slug}`}
+                    className="p-4 bg-white rounded-xl border border-gray-light hover:border-forest hover:shadow-light transition-all"
+                  >
+                    <BookOpen className="w-6 h-6 text-forest mb-2" />
+                    <p className="font-medium text-gray-dark line-clamp-1">{publisher.name}</p>
                   </Link>
                 ))}
               </div>

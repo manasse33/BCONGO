@@ -18,8 +18,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { books, genres } from '@/data/mockData';
-import type { Book, BookType } from '@/types';
+import type { Book, BookType, Genre } from '@/types';
+import { booksApi, genresApi, libraryApi } from '@/services/api';
 
 interface FilterState {
   genres: string[];
@@ -44,10 +44,18 @@ const bookTypes: { value: BookType; label: string }[] = [
 
 export default function LibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [books, setBooks] = useState<Book[]>([]);
+  const [genres, setGenres] = useState<Genre[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'rating'>('popular');
+  const [libraryCounts, setLibraryCounts] = useState({
+    all: 0,
+    toRead: 0,
+    reading: 0,
+    completed: 0,
+  });
   const [filters, setFilters] = useState<FilterState>({
     genres: [],
     types: [],
@@ -65,6 +73,56 @@ export default function LibraryPage() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    const loadGenres = async () => {
+      try {
+        const data = await genresApi.getAll();
+        setGenres(data);
+      } catch (error) {
+        setGenres([]);
+      }
+    };
+
+    loadGenres();
+  }, []);
+
+  useEffect(() => {
+    const loadBooks = async () => {
+      try {
+        const response = await booksApi.getAll({
+          page: 1,
+          per_page: 200,
+          genre: filters.genres[0],
+          type: filters.types[0],
+        });
+        setBooks(response.data);
+
+        const hasToken = Boolean(localStorage.getItem('auth_token'));
+        if (hasToken) {
+          const [allBooks, toRead, reading, completed] = await Promise.all([
+            libraryApi.getAll(),
+            libraryApi.getToRead(),
+            libraryApi.getReading(),
+            libraryApi.getCompleted(),
+          ]);
+          setLibraryCounts({
+            all: allBooks.length,
+            toRead: toRead.length,
+            reading: reading.length,
+            completed: completed.length,
+          });
+        } else {
+          setLibraryCounts({ all: 0, toRead: 0, reading: 0, completed: 0 });
+        }
+      } catch (error) {
+        setBooks([]);
+        setLibraryCounts({ all: 0, toRead: 0, reading: 0, completed: 0 });
+      }
+    };
+
+    loadBooks();
+  }, [filters.genres, filters.types]);
+
   // Filter and sort books
   const filteredBooks = useMemo(() => {
     let result = [...books];
@@ -78,7 +136,12 @@ export default function LibraryPage() {
     }
 
     if (filters.genres.length > 0) {
-      result = result.filter(() => Math.random() > 0.3);
+      result = result.filter((book) => {
+        if (!book.genres || book.genres.length === 0) {
+          return true;
+        }
+        return book.genres.some((genre) => filters.genres.includes(genre.slug));
+      });
     }
 
     if (filters.types.length > 0) {
@@ -152,7 +215,7 @@ export default function LibraryPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Badge className="bg-forest/10 text-forest border-none mb-4 font-medium px-4 py-1">Catalogue complet</Badge>
+
             <h1 className="font-serif text-4xl lg:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">
               Bibliothèque Numérique
             </h1>
@@ -164,6 +227,13 @@ export default function LibraryPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+        <div className="flex flex-wrap gap-2 mb-6">
+          <Badge variant="outline">Bibliotheque: {libraryCounts.all}</Badge>
+          <Badge variant="outline">A lire: {libraryCounts.toRead}</Badge>
+          <Badge variant="outline">En cours: {libraryCounts.reading}</Badge>
+          <Badge variant="outline">Termines: {libraryCounts.completed}</Badge>
+        </div>
+
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           
           {/* Sidebar Filters - Desktop */}

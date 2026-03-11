@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -10,18 +10,28 @@ import {
   Award,
   Clock,
   ChevronRight,
-  Upload,
   Star,
   Medal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { contests, authors } from '@/data/mockData';
-import type { Contest } from '@/types';
+import type { Contest, ContestSubmission, User } from '@/types';
+import { contestsApi, leaderboardApi } from '@/services/api';
+import { toast } from 'sonner';
 
 // Contest Card Component
-const ContestCard = ({ contest, index }: { contest: Contest; index: number }) => {
+const ContestCard = ({
+  contest,
+  index,
+  isSubmitting,
+  onParticipate,
+}: {
+  contest: Contest;
+  index: number;
+  isSubmitting: boolean;
+  onParticipate: (contest: Contest) => void;
+}) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'ouvert': return 'bg-green-100 text-green-700';
@@ -92,9 +102,10 @@ const ContestCard = ({ contest, index }: { contest: Contest; index: number }) =>
           <p className="text-sm text-gray-medium">{contest.prizes_description}</p>
         </div>
 
-        <Button 
+        <Button
           className="w-full bg-forest hover:bg-forest-dark text-white"
-          disabled={contest.status !== 'ouvert'}
+          disabled={contest.status !== 'ouvert' || isSubmitting}
+          onClick={() => onParticipate(contest)}
         >
           {contest.status === 'ouvert' ? (
             <>
@@ -153,6 +164,50 @@ const WinnerCard = ({ author, category, year, index }: { author: any; category: 
 export default function ContestsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [contests, setContests] = useState<Contest[]>([]);
+  const [winners, setWinners] = useState<User[]>([]);
+  const [selectedContestSlug, setSelectedContestSlug] = useState('');
+  const [authorName, setAuthorName] = useState('');
+  const [submissionTitle, setSubmissionTitle] = useState('');
+  const [submissionContent, setSubmissionContent] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submissionFormRef = useRef<HTMLElement | null>(null);
+  const [mySubmissions, setMySubmissions] = useState<ContestSubmission[]>([]);
+  const [voteSubmissionId, setVoteSubmissionId] = useState('');
+  const [selectedContestSubmissions, setSelectedContestSubmissions] = useState<ContestSubmission[]>([]);
+
+  useEffect(() => {
+    const loadContestData = async () => {
+      const hasToken = Boolean(localStorage.getItem('auth_token'));
+      try {
+        const [contestData, authorLeaderboard, mySubmissionData] = await Promise.all([
+          contestsApi.getAll(),
+          leaderboardApi.getAuthors(),
+          hasToken ? contestsApi.getMySubmissions() : Promise.resolve([]),
+        ]);
+
+        const authorUsers = authorLeaderboard
+          .map((entry: any) => entry?.user)
+          .filter((author: User | undefined): author is User => Boolean(author))
+          .slice(0, 4);
+
+        setContests(contestData);
+        setWinners(authorUsers);
+        setMySubmissions(mySubmissionData);
+        const firstOpenContest = contestData.find((contest) => contest.status === 'ouvert');
+        if (firstOpenContest) {
+          setSelectedContestSlug(firstOpenContest.slug);
+        }
+      } catch (error) {
+        setContests([]);
+        setWinners([]);
+        setSelectedContestSlug('');
+        setMySubmissions([]);
+      }
+    };
+
+    loadContestData();
+  }, []);
 
   const categories = [
     { id: 'poesie', label: 'Poésie', icon: Star },
@@ -166,6 +221,134 @@ export default function ContestsPage() {
     const matchesCategory = activeCategory ? contest.contest_type === activeCategory : true;
     return matchesSearch && matchesCategory;
   });
+
+  const handleParticipate = (contest: Contest) => {
+    const hasToken = Boolean(localStorage.getItem('auth_token'));
+    if (!hasToken) {
+      toast.error('Connectez-vous pour participer a un concours.');
+      return;
+    }
+
+    if (contest.status !== 'ouvert') {
+      toast.error('Ce concours n accepte plus de soumissions.');
+      return;
+    }
+
+    contestsApi
+      .getBySlug(contest.slug)
+      .then((detail) => {
+        setSelectedContestSlug(detail.slug);
+        toast.success(`Concours selectionne: ${detail.title}`);
+        contestsApi.getSubmissions(detail.slug).then(setSelectedContestSubmissions).catch(() => setSelectedContestSubmissions([]));
+        submissionFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      })
+      .catch(() => {
+        setSelectedContestSlug(contest.slug);
+        toast.success(`Concours selectionne: ${contest.title}`);
+        contestsApi.getSubmissions(contest.slug).then(setSelectedContestSubmissions).catch(() => setSelectedContestSubmissions([]));
+        submissionFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+  };
+
+  const handleSubmission = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const hasToken = Boolean(localStorage.getItem('auth_token'));
+    if (!hasToken) {
+      toast.error('Connectez-vous pour soumettre votre oeuvre.');
+      return;
+    }
+
+    if (!selectedContestSlug) {
+      toast.error('Selectionnez un concours ouvert.');
+      return;
+    }
+
+    if (!submissionTitle.trim()) {
+      toast.error('Le titre de la soumission est obligatoire.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await contestsApi.submit(selectedContestSlug, {
+        title: submissionTitle.trim(),
+        content: submissionContent.trim() || undefined,
+      });
+      toast.success('Soumission envoyee avec succes.');
+      try {
+        const refreshed = await contestsApi.getMySubmissions();
+        setMySubmissions(refreshed);
+      } catch (error) {
+        // Keep UI state without blocking success toast.
+      }
+      setSubmissionTitle('');
+      setSubmissionContent('');
+      setAuthorName('');
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Impossible de soumettre votre oeuvre pour le moment.';
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const refreshMySubmissions = async () => {
+    try {
+      const submissions = await contestsApi.getMySubmissions();
+      setMySubmissions(submissions);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Impossible de charger vos soumissions.');
+    }
+  };
+
+  const handleUpdateMySubmission = async (submission: ContestSubmission) => {
+    const newTitle = window.prompt('Nouveau titre', submission.title);
+    if (!newTitle || !newTitle.trim()) return;
+
+    try {
+      const detail = await contestsApi.getMySubmissionById(submission.id);
+      await contestsApi.updateMySubmission(submission.id, {
+        title: newTitle.trim(),
+        content: detail.content,
+      });
+      toast.success('Soumission mise a jour.');
+      await refreshMySubmissions();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Mise a jour impossible.');
+    }
+  };
+
+  const handleDeleteMySubmission = async (submissionId: number) => {
+    if (!window.confirm('Supprimer cette soumission ?')) return;
+    try {
+      await contestsApi.deleteMySubmission(submissionId);
+      setMySubmissions((prev) => prev.filter((submission) => submission.id !== submissionId));
+      toast.success('Soumission supprimee.');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Suppression impossible.');
+    }
+  };
+
+  const handleVote = async () => {
+    const id = Number(voteSubmissionId);
+    if (!Number.isFinite(id) || id <= 0) {
+      toast.error('ID de soumission invalide.');
+      return;
+    }
+
+    try {
+      await contestsApi.vote(id);
+      setVoteSubmissionId('');
+      toast.success('Vote enregistre.');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Vote impossible.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-cream">
@@ -254,7 +437,13 @@ export default function ContestsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredContests.map((contest, index) => (
-              <ContestCard key={contest.id} contest={contest} index={index} />
+              <ContestCard
+                key={contest.id}
+                contest={contest}
+                index={index}
+                isSubmitting={isSubmitting}
+                onParticipate={handleParticipate}
+              />
             ))}
           </div>
 
@@ -281,7 +470,7 @@ export default function ContestsPage() {
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {authors.slice(0, 4).map((author, index) => (
+            {winners.map((author, index) => (
               <WinnerCard
                 key={author.id}
                 author={author}
@@ -293,8 +482,70 @@ export default function ContestsPage() {
           </div>
         </section>
 
+        {/* My Submissions */}
+        <section className="mb-16 bg-white border border-gray-light rounded-2xl p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <h2 className="font-serif text-2xl font-bold text-gray-dark">Mes Soumissions</h2>
+            <Button variant="outline" onClick={refreshMySubmissions}>
+              Rafraichir
+            </Button>
+          </div>
+
+          {mySubmissions.length === 0 ? (
+            <p className="text-gray-medium">Aucune soumission disponible.</p>
+          ) : (
+            <div className="space-y-3">
+              {mySubmissions.map((submission) => (
+                <div key={submission.id} className="border border-gray-light rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-gray-dark">{submission.title}</p>
+                    <p className="text-sm text-gray-medium">
+                      Statut: {submission.status} | Votes: {submission.votes_count}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleUpdateMySubmission(submission)}>
+                      Modifier
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleDeleteMySubmission(submission.id)}>
+                      Supprimer
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-6 pt-6 border-t border-gray-light">
+            <label className="block text-sm font-medium text-gray-dark mb-2">Voter pour une soumission (ID)</label>
+            <div className="flex gap-2">
+              <Input
+                value={voteSubmissionId}
+                onChange={(e) => setVoteSubmissionId(e.target.value)}
+                placeholder="Submission ID"
+              />
+              <Button onClick={handleVote} className="bg-forest hover:bg-forest-dark text-white">
+                Voter
+              </Button>
+            </div>
+            {selectedContestSubmissions.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {selectedContestSubmissions.slice(0, 5).map((submission) => (
+                  <div key={submission.id} className="flex items-center justify-between text-sm border border-gray-light rounded-lg px-3 py-2">
+                    <span className="text-gray-dark">{submission.title}</span>
+                    <Button size="sm" variant="outline" onClick={() => setVoteSubmissionId(String(submission.id))}>
+                      Utiliser ID {submission.id}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* Submission Form */}
         <motion.section
+          ref={submissionFormRef}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
@@ -341,46 +592,59 @@ export default function ContestsPage() {
             </div>
 
             <div className="bg-cream rounded-xl p-6">
-              <form className="space-y-4">
+              <form className="space-y-4" onSubmit={handleSubmission}>
                 <div>
                   <label className="block text-sm font-medium text-gray-dark mb-1">
                     Nom de l'Auteur
                   </label>
-                  <Input placeholder="Votre nom complet" />
+                  <Input
+                    placeholder="Votre nom complet"
+                    value={authorName}
+                    onChange={(e) => setAuthorName(e.target.value)}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-dark mb-1">
                     Titre de l'Œuvre
                   </label>
-                  <Input placeholder="Titre de votre soumission" />
+                  <Input
+                    placeholder="Titre de votre soumission"
+                    value={submissionTitle}
+                    onChange={(e) => setSubmissionTitle(e.target.value)}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-dark mb-1">
-                    Catégorie
+                    Concours ouvert
                   </label>
-                  <select className="w-full px-4 py-2 bg-white border border-gray-light rounded-lg focus:outline-none focus:border-forest">
-                    <option>Sélectionnez une catégorie</option>
-                    <option>Poésie</option>
-                    <option>Nouvelle</option>
-                    <option>Bande Dessinée</option>
-                    <option>Roman</option>
+                  <select
+                    className="w-full px-4 py-2 bg-white border border-gray-light rounded-lg focus:outline-none focus:border-forest"
+                    value={selectedContestSlug}
+                    onChange={(e) => setSelectedContestSlug(e.target.value)}
+                  >
+                    <option value="">Selectionnez un concours</option>
+                    {contests
+                      .filter((contest) => contest.status === 'ouvert')
+                      .map((contest) => (
+                        <option key={contest.id} value={contest.slug}>
+                          {contest.title}
+                        </option>
+                      ))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-dark mb-1">
-                    Fichier
+                    Texte de soumission
                   </label>
-                  <div className="border-2 border-dashed border-gray-light rounded-lg p-6 text-center hover:border-forest transition-colors cursor-pointer">
-                    <Upload className="w-8 h-8 text-gray-medium mx-auto mb-2" />
-                    <p className="text-sm text-gray-medium">
-                      Glissez votre fichier ici ou cliquez pour sélectionner
-                    </p>
-                    <p className="text-xs text-gray-medium mt-1">
-                      PDF, DOCX (max 10MB)
-                    </p>
-                  </div>
+                  <textarea
+                    rows={6}
+                    value={submissionContent}
+                    onChange={(e) => setSubmissionContent(e.target.value)}
+                    placeholder="Collez ici votre texte ou resume de l'oeuvre"
+                    className="w-full px-4 py-3 bg-white border border-gray-light rounded-lg focus:outline-none focus:border-forest resize-none"
+                  />
                 </div>
-                <Button className="w-full bg-forest hover:bg-forest-dark text-white">
+                <Button type="submit" disabled={isSubmitting} className="w-full bg-forest hover:bg-forest-dark text-white">
                   Soumettre mon Œuvre
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>

@@ -16,10 +16,11 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 
 interface LoginPageProps {
-  onLogin: (credentials: { email: string; password: string }) => Promise<boolean>;
+  onLogin: (credentials: { email: string; password: string; remember?: boolean }) => Promise<boolean>;
+  onSocialLogin: (provider: 'google' | 'facebook', accessToken: string) => Promise<boolean>;
 }
 
-export default function LoginPage({ onLogin }: LoginPageProps) {
+export default function LoginPage({ onLogin, onSocialLogin }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,11 +33,24 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     setError('');
     setIsLoading(true);
 
-    const success = await onLogin({ email, password });
+    const success = await onLogin({ email, password, remember: rememberMe });
     if (!success) {
       setError('Email ou mot de passe incorrect');
     }
 
+    setIsLoading(false);
+  };
+
+  const handleSocialAuth = async (provider: 'google' | 'facebook') => {
+    const accessToken = window.prompt(`Collez le token ${provider} ici`);
+    if (!accessToken) return;
+
+    setError('');
+    setIsLoading(true);
+    const success = await onSocialLogin(provider, accessToken);
+    if (!success) {
+      setError(`Echec de connexion ${provider}.`);
+    }
     setIsLoading(false);
   };
 
@@ -158,11 +172,11 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
           {/* Social Login */}
           <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" disabled={isLoading} onClick={() => handleSocialAuth('google')}>
               <Chrome className="w-5 h-5 mr-2" />
               Google
             </Button>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" disabled={isLoading} onClick={() => handleSocialAuth('facebook')}>
               <Facebook className="w-5 h-5 mr-2" />
               Facebook
             </Button>

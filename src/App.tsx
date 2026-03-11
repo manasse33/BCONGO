@@ -20,32 +20,20 @@ import SearchPage from '@/pages/SearchPage';
 import ProfilePage from '@/pages/ProfilePage';
 import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
+import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
+import ResetPasswordPage from '@/pages/ResetPasswordPage';
+import VerifyEmailPage from '@/pages/VerifyEmailPage';
+import SettingsPage from '@/pages/SettingsPage';
+import AdminPage from '@/pages/AdminPage';
+import PublicUserPage from '@/pages/PublicUserPage';
 
 // Types
 import type { User } from '@/types';
 import { authApi } from '@/services/api';
-
-// Mock user for development
-const mockUser: User = {
-  id: 1,
-  uuid: 'user-mock-001',
-  role_id: 2,
-  first_name: 'Jean',
-  last_name: 'Kouassi',
-  username: 'jeankouassi',
-  email: 'jean@example.com',
-  avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop',
-  bio: 'Passionné de littérature africaine et auteur en herbe.',
-  city: 'Brazzaville',
-  reading_score: 1250,
-  is_active: true,
-  is_banned: false,
-  created_at: '2024-01-01',
-  updated_at: '2024-03-15',
-};
+import { canAccessAdminSpace, canAccessAuthorSpace } from '@/lib/rbac';
 
 function App() {
-  const [user, setUser] = useState<User | null>(mockUser); // Start with mock user for demo
+  const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -57,8 +45,14 @@ function App() {
           const userData = await authApi.me();
           setUser(userData);
         } catch (error) {
-          localStorage.removeItem('auth_token');
-          setUser(null);
+          try {
+            await authApi.refresh();
+            const userData = await authApi.me();
+            setUser(userData);
+          } catch (refreshError) {
+            localStorage.removeItem('auth_token');
+            setUser(null);
+          }
         }
       }
       setIsLoading(false);
@@ -67,11 +61,16 @@ function App() {
     checkAuth();
   }, []);
 
-  const handleLogin = async (credentials: { email: string; password: string }) => {
+  const handleLogin = async (credentials: { email: string; password: string; remember?: boolean }) => {
     try {
       const { user: userData, token } = await authApi.login(credentials);
       localStorage.setItem('auth_token', token);
-      setUser(userData);
+      try {
+        const profile = await authApi.me();
+        setUser(profile);
+      } catch (error) {
+        setUser(userData);
+      }
       toast.success('Connexion réussie !');
       return true;
     } catch (error) {
@@ -91,7 +90,12 @@ function App() {
     try {
       const { user: userData, token } = await authApi.register(data);
       localStorage.setItem('auth_token', token);
-      setUser(userData);
+      try {
+        const profile = await authApi.me();
+        setUser(profile);
+      } catch (error) {
+        setUser(userData);
+      }
       toast.success('Inscription réussie ! Bienvenue sur BiblioCongo.');
       return true;
     } catch (error) {
@@ -109,6 +113,24 @@ function App() {
       localStorage.removeItem('auth_token');
       setUser(null);
       toast.success('Déconnexion réussie.');
+    }
+  };
+
+  const handleSocialLogin = async (provider: 'google' | 'facebook', accessToken: string) => {
+    try {
+      const { user: userData, token } = await authApi.socialLogin(provider, accessToken);
+      localStorage.setItem('auth_token', token);
+      try {
+        const profile = await authApi.me();
+        setUser(profile);
+      } catch (error) {
+        setUser(userData);
+      }
+      toast.success(`Connexion ${provider} reussie.`);
+      return true;
+    } catch (error) {
+      toast.error(`Echec de connexion ${provider}.`);
+      return false;
     }
   };
 
@@ -143,7 +165,7 @@ function App() {
               element={
                 user ? 
                   <Navigate to="/" replace /> : 
-                  <LoginPage onLogin={handleLogin} />
+                  <LoginPage onLogin={handleLogin} onSocialLogin={handleSocialLogin} />
               } 
             />
             <Route 
@@ -151,9 +173,11 @@ function App() {
               element={
                 user ? 
                   <Navigate to="/" replace /> : 
-                  <RegisterPage onRegister={handleRegister} />
+                  <RegisterPage onRegister={handleRegister} onSocialLogin={handleSocialLogin} />
               } 
             />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             
             {/* Protected Routes */}
             <Route 
@@ -167,10 +191,42 @@ function App() {
             <Route 
               path="/author/dashboard" 
               element={
-                user?.role_id === 2 ? 
+                user && canAccessAuthorSpace(user) ? 
                   <AuthorDashboard user={user} /> : 
                   <Navigate to="/" replace />
               } 
+            />
+            <Route
+              path="/settings"
+              element={
+                user ?
+                  <SettingsPage user={user} onLogout={handleLogout} /> :
+                  <Navigate to="/login" replace />
+              }
+            />
+            <Route
+              path="/verify-email/:id/:hash"
+              element={
+                user ?
+                  <VerifyEmailPage /> :
+                  <Navigate to="/login" replace />
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                user && canAccessAdminSpace(user) ?
+                  <AdminPage user={user} /> :
+                  <Navigate to="/" replace />
+              }
+            />
+            <Route
+              path="/author/:username"
+              element={
+                user ?
+                  <PublicUserPage currentUser={user} /> :
+                  <Navigate to="/login" replace />
+              }
             />
             
             {/* Catch all */}
@@ -186,3 +242,5 @@ function App() {
 }
 
 export default App;
+
+

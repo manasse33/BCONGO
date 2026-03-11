@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  Play, 
-  Pause, 
-  SkipBack, 
-  SkipForward, 
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
   Volume2,
   Headphones,
   Clock,
@@ -14,12 +14,13 @@ import {
   Share2,
   Mic,
   Music,
-  BookOpen
+  BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { books } from '@/data/mockData';
+import type { Book, UserReading } from '@/types';
+import { booksApi, readingApi, recommendationsApi } from '@/services/api';
 
 // Format seconds to MM:SS
 const formatTime = (seconds: number) => {
@@ -28,44 +29,51 @@ const formatTime = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-// Mock audio book data
-const audiobooks = books.filter(book => book.type === 'audio');
-
-const podcastCategories = [
-  { icon: Mic, name: 'Philosophie Simple', episodes: 24 },
-  { icon: Music, name: 'Science Expliquée', episodes: 18 },
-  { icon: BookOpen, name: 'Histoire Dévoilée', episodes: 32 },
-  { icon: Headphones, name: 'Contes Africains', episodes: 45 },
-];
-
-const continueListening = [
-  { title: 'Chapitre 3: La Ruse d\'Anansi', book: 'La Légende d\'Anansi', progress: 65, duration: 1080 },
-  { title: 'Épisode 2: Les Mystères du Cosmos', book: 'Science Expliquée', progress: 30, duration: 2400 },
-  { title: 'Chapitre 1: Introduction', book: 'Histoire du Congo', progress: 90, duration: 720 },
-];
-
-const playlists = [
-  { name: 'Mythes d\'Afrique', count: 12, image: 'https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=200&h=200&fit=crop' },
-  { name: 'Poésie Parlée', count: 8, image: 'https://images.unsplash.com/photo-1495640388908-05fa85288e61?w=200&h=200&fit=crop' },
-  { name: 'Histoire et Culture', count: 15, image: 'https://images.unsplash.com/photo-1461360370896-922624d12aa1?w=200&h=200&fit=crop' },
-];
-
 export default function AudiobooksPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration] = useState(4520); // Mock duration in seconds
   const [volume, setVolume] = useState(80);
   const [playbackRate, setPlaybackRate] = useState(1);
-  const [currentTrack, setCurrentTrack] = useState(audiobooks[0] || null);
+  const [audiobooks, setAudiobooks] = useState<Book[]>([]);
+  const [currentTrack, setCurrentTrack] = useState<Book | null>(null);
   const [activeTab, setActiveTab] = useState<'audiobooks' | 'podcasts'>('audiobooks');
-  
+  const [continueListening, setContinueListening] = useState<UserReading[]>([]);
+  const [recommendedBooks, setRecommendedBooks] = useState<Book[]>([]);
+
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const loadAudioData = async () => {
+      const hasToken = Boolean(localStorage.getItem('auth_token'));
+
+      try {
+        const audioData = await booksApi.getAudio();
+        const [readingData, recommendationData] = hasToken
+          ? await Promise.all([readingApi.getMyReadings(), recommendationsApi.getAll()])
+          : [[], []];
+
+        setAudiobooks(audioData);
+        setCurrentTrack(audioData[0] ?? null);
+        setContinueListening(readingData.filter((item) => item.book?.type === 'audio' && item.status === 'en_cours'));
+        setRecommendedBooks(recommendationData.filter((item) => item.type === 'audio'));
+      } catch (error) {
+        setAudiobooks([]);
+        setCurrentTrack(null);
+        setContinueListening([]);
+        setRecommendedBooks([]);
+      }
+    };
+
+    loadAudioData();
+  }, []);
+
+  const duration = currentTrack?.duration_seconds ?? 0;
 
   // Simulate progress when playing
   useEffect(() => {
-    if (isPlaying) {
+    if (isPlaying && duration > 0) {
       progressInterval.current = setInterval(() => {
-        setCurrentTime(prev => {
+        setCurrentTime((prev) => {
           if (prev >= duration) {
             setIsPlaying(false);
             return 0;
@@ -73,18 +81,47 @@ export default function AudiobooksPage() {
           return prev + 1;
         });
       }, 1000);
-    } else {
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current);
-      }
+    } else if (progressInterval.current) {
+      clearInterval(progressInterval.current);
     }
-    
+
     return () => {
       if (progressInterval.current) {
         clearInterval(progressInterval.current);
       }
     };
   }, [isPlaying, duration]);
+
+  useEffect(() => {
+    setCurrentTime(0);
+    setIsPlaying(false);
+  }, [currentTrack?.id]);
+
+  const podcastCategories = useMemo(() => {
+    const source = recommendedBooks.length > 0 ? recommendedBooks : audiobooks;
+    const grouped = source.reduce<Record<string, number>>((acc, book) => {
+      const key = book.author_name || 'Podcast';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    const icons = [Mic, Music, BookOpen, Headphones];
+
+    return Object.entries(grouped).slice(0, 4).map(([name, episodes], index) => ({
+      icon: icons[index % icons.length],
+      name,
+      episodes,
+    }));
+  }, [recommendedBooks, audiobooks]);
+
+  const playlists = useMemo(() => {
+    const source = recommendedBooks.length > 0 ? recommendedBooks : audiobooks;
+    return source.slice(0, 3).map((book) => ({
+      name: book.title,
+      count: Math.max(1, Math.round((book.duration_seconds ?? 0) / 600)),
+      image: book.cover_image,
+    }));
+  }, [recommendedBooks, audiobooks]);
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
@@ -98,7 +135,7 @@ export default function AudiobooksPage() {
     setVolume(value[0]);
   };
 
-  const progressPercent = (currentTime / duration) * 100;
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-cream">
@@ -167,7 +204,7 @@ export default function AudiobooksPage() {
                           alt={currentTrack.title}
                           className="w-full h-full object-cover"
                         />
-                        <button 
+                        <button
                           onClick={handlePlayPause}
                           className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors"
                         >
@@ -188,13 +225,9 @@ export default function AudiobooksPage() {
                         <Headphones className="w-3 h-3 mr-1" />
                         Livre Audio
                       </Badge>
-                      
-                      <h2 className="font-serif text-3xl lg:text-4xl font-bold mb-2">
-                        {currentTrack.title}
-                      </h2>
-                      <p className="text-white/80 text-lg mb-6">
-                        Narrateur: Didi Dankwa
-                      </p>
+
+                      <h2 className="font-serif text-3xl lg:text-4xl font-bold mb-2">{currentTrack.title}</h2>
+                      <p className="text-white/80 text-lg mb-6">Narrateur: {currentTrack.author_name}</p>
 
                       {/* Progress Bar */}
                       <div className="mb-6">
@@ -203,13 +236,13 @@ export default function AudiobooksPage() {
                           <span>{formatTime(duration)}</span>
                         </div>
                         <div className="relative h-2 bg-white/20 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className="absolute left-0 top-0 h-full bg-gold rounded-full transition-all"
                             style={{ width: `${progressPercent}%` }}
                           />
                           <Slider
                             value={[currentTime]}
-                            max={duration}
+                            max={Math.max(duration, 1)}
                             step={1}
                             onValueChange={handleSeek}
                             className="absolute inset-0 opacity-0 cursor-pointer"
@@ -222,14 +255,12 @@ export default function AudiobooksPage() {
                               key={i}
                               className="w-1 bg-gold rounded-full"
                               animate={{
-                                height: isPlaying 
-                                  ? [20, Math.random() * 40 + 10, 20]
-                                  : 10
+                                height: isPlaying ? [20, ((i * 13) % 40) + 10, 20] : 10,
                               }}
                               transition={{
                                 duration: 0.5,
                                 repeat: isPlaying ? Infinity : 0,
-                                delay: i * 0.02
+                                delay: i * 0.02,
                               }}
                             />
                           ))}
@@ -241,7 +272,7 @@ export default function AudiobooksPage() {
                         <button className="text-white/70 hover:text-white transition-colors">
                           <SkipBack className="w-6 h-6" />
                         </button>
-                        <button 
+                        <button
                           onClick={handlePlayPause}
                           className="w-14 h-14 bg-gold rounded-full flex items-center justify-center hover:bg-gold-light transition-colors"
                         >
@@ -260,13 +291,7 @@ export default function AudiobooksPage() {
                       <div className="flex items-center justify-between mt-6">
                         <div className="flex items-center gap-4">
                           <Volume2 className="w-5 h-5 text-white/70" />
-                          <Slider
-                            value={[volume]}
-                            max={100}
-                            step={1}
-                            onValueChange={handleVolumeChange}
-                            className="w-24"
-                          />
+                          <Slider value={[volume]} max={100} step={1} onValueChange={handleVolumeChange} className="w-24" />
                         </div>
                         <div className="flex items-center gap-2">
                           <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
@@ -281,9 +306,7 @@ export default function AudiobooksPage() {
                                 key={rate}
                                 onClick={() => setPlaybackRate(rate)}
                                 className={`px-2 py-1 rounded text-sm ${
-                                  playbackRate === rate
-                                    ? 'bg-gold text-gray-dark'
-                                    : 'text-white/70 hover:text-white'
+                                  playbackRate === rate ? 'bg-gold text-gray-dark' : 'text-white/70 hover:text-white'
                                 }`}
                               >
                                 {rate}x
@@ -299,15 +322,15 @@ export default function AudiobooksPage() {
                   <div className="mt-8 pt-8 border-t border-white/20">
                     <h3 className="font-semibold mb-4">Chapitres</h3>
                     <div className="space-y-2">
-                      {['Chapitre 1: Introduction', 'Chapitre 2: La Toile d\'Araignée', 'Chapitre 3: La Ruse d\'Anansi', 'Chapitre 4: Le Défi du Roi'].map((chapter, i) => (
+                      {['Introduction', 'Chapitre 1', 'Chapitre 2', 'Chapitre 3'].map((chapter, i) => (
                         <button
                           key={chapter}
                           className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
-                            i === 2 ? 'bg-white/10' : 'hover:bg-white/5'
+                            i === 0 ? 'bg-white/10' : 'hover:bg-white/5'
                           }`}
                         >
-                          <span className={i === 2 ? 'text-gold' : ''}>{chapter}</span>
-                          {i === 2 && <span className="text-gold text-sm">En cours</span>}
+                          <span className={i === 0 ? 'text-gold' : ''}>{chapter}</span>
+                          {i === 0 && <span className="text-gold text-sm">En cours</span>}
                         </button>
                       ))}
                     </div>
@@ -323,39 +346,37 @@ export default function AudiobooksPage() {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="mb-10"
             >
-              <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">
-                Continuer l'Écoute
-              </h3>
+              <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">Continuer l'Ecoute</h3>
               <div className="space-y-4">
-                {continueListening.map((item) => (
-                  <div
-                    key={item.title}
-                    className="flex items-center gap-4 bg-white rounded-xl p-4 border border-gray-light hover:border-gold transition-colors"
-                  >
-                    <div className="w-16 h-16 bg-forest/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Headphones className="w-8 h-8 text-forest" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-dark">{item.title}</p>
-                      <p className="text-sm text-gray-medium">{item.book}</p>
-                      <div className="mt-2">
-                        <div className="h-1.5 bg-gray-light rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-forest rounded-full"
-                            style={{ width: `${item.progress}%` }}
-                          />
+                {continueListening.map((item) => {
+                  const trackDuration = item.book?.duration_seconds ?? 0;
+                  const progress = Math.round(item.progress_percent);
+                  const remaining = Math.max(0, trackDuration - Math.round((trackDuration * progress) / 100));
+
+                  return (
+                    <div key={item.id} className="flex items-center gap-4 bg-white rounded-xl p-4 border border-gray-light hover:border-gold transition-colors">
+                      <div className="w-16 h-16 bg-forest/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Headphones className="w-8 h-8 text-forest" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-dark">{item.book?.title}</p>
+                        <p className="text-sm text-gray-medium">{item.book?.author_name}</p>
+                        <div className="mt-2">
+                          <div className="h-1.5 bg-gray-light rounded-full overflow-hidden">
+                            <div className="h-full bg-forest rounded-full" style={{ width: `${progress}%` }} />
+                          </div>
                         </div>
                       </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-medium">{formatTime(remaining)} restant</p>
+                        <Button size="sm" variant="ghost" className="text-forest">
+                          <Play className="w-4 h-4 mr-1" />
+                          Reprendre
+                        </Button>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-medium">{formatTime(item.duration - (item.duration * item.progress / 100))} restant</p>
-                      <Button size="sm" variant="ghost" className="text-forest">
-                        <Play className="w-4 h-4 mr-1" />
-                        Reprendre
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </motion.section>
 
@@ -366,20 +387,14 @@ export default function AudiobooksPage() {
               transition={{ duration: 0.5, delay: 0.3 }}
               className="mb-10"
             >
-              <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">
-                Vos Playlists
-              </h3>
+              <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">Vos Playlists</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {playlists.map((playlist) => (
                   <div
                     key={playlist.name}
                     className="bg-white rounded-xl border border-gray-light overflow-hidden hover:border-gold hover:shadow-light transition-all cursor-pointer"
                   >
-                    <img
-                      src={playlist.image}
-                      alt={playlist.name}
-                      className="w-full h-32 object-cover"
-                    />
+                    <img src={playlist.image} alt={playlist.name} className="w-full h-32 object-cover" />
                     <div className="p-4">
                       <h4 className="font-medium text-gray-dark">{playlist.name}</h4>
                       <p className="text-sm text-gray-medium">{playlist.count} titres</p>
@@ -395,9 +410,7 @@ export default function AudiobooksPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
             >
-              <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">
-                Plus de Livres Audio
-              </h3>
+              <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">Plus de Livres Audio</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {audiobooks.map((book) => (
                   <div
@@ -406,11 +419,7 @@ export default function AudiobooksPage() {
                     onClick={() => setCurrentTrack(book)}
                   >
                     <div className="relative">
-                      <img
-                        src={book.cover_image}
-                        alt={book.title}
-                        className="w-full aspect-square object-cover"
-                      />
+                      <img src={book.cover_image} alt={book.title} className="w-full aspect-square object-cover" />
                       <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                         <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
                           <Play className="w-6 h-6 text-forest ml-1" />
@@ -447,23 +456,16 @@ export default function AudiobooksPage() {
                     <category.icon className="w-8 h-8 text-forest" />
                   </div>
                   <h4 className="font-medium text-gray-dark">{category.name}</h4>
-                  <p className="text-sm text-gray-medium">{category.episodes} épisodes</p>
+                  <p className="text-sm text-gray-medium">{category.episodes} episodes</p>
                 </div>
               ))}
             </div>
 
-            <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">
-              Épisodes Populaires
-            </h3>
+            <h3 className="font-serif text-2xl font-bold text-gray-dark mb-6">Episodes Populaires</h3>
             <div className="space-y-4">
-              {[
-                { title: 'L\'origine de l\'univers', podcast: 'Science Expliquée', duration: 1800 },
-                { title: 'Socrate et la philosophie', podcast: 'Philosophie Simple', duration: 2400 },
-                { title: 'Les royaumes africains', podcast: 'Histoire Dévoilée', duration: 2100 },
-                { title: 'Le lion et la hyène', podcast: 'Contes Africains', duration: 900 },
-              ].map((episode) => (
+              {(recommendedBooks.length > 0 ? recommendedBooks : audiobooks).slice(0, 4).map((episode) => (
                 <div
-                  key={episode.title}
+                  key={episode.id}
                   className="flex items-center gap-4 bg-white rounded-xl p-4 border border-gray-light hover:border-gold transition-colors"
                 >
                   <div className="w-12 h-12 bg-forest/10 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -471,10 +473,10 @@ export default function AudiobooksPage() {
                   </div>
                   <div className="flex-1">
                     <h4 className="font-medium text-gray-dark">{episode.title}</h4>
-                    <p className="text-sm text-gray-medium">{episode.podcast}</p>
+                    <p className="text-sm text-gray-medium">{episode.author_name}</p>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-sm text-gray-medium">{formatTime(episode.duration)}</span>
+                    <span className="text-sm text-gray-medium">{formatTime(episode.duration_seconds || 0)}</span>
                     <Button size="sm" variant="ghost">
                       <Download className="w-4 h-4" />
                     </Button>

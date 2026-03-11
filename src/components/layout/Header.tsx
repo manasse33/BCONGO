@@ -5,7 +5,6 @@ import {
   Menu, 
   X, 
   Search, 
-  BookOpen, 
   User, 
   Bell, 
   LogOut,
@@ -14,7 +13,10 @@ import {
   Headphones,
   Users,
   Trophy,
-  Home
+  Home,
+  LayoutDashboard,
+  Shield,
+  Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -26,6 +28,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { User as UserType } from '@/types';
+import logoImage from '@/assets/logo.png';
+import { canAccessAdminSpace, canAccessAuthorSpace } from '@/lib/rbac';
 
 interface HeaderProps {
   user: UserType | null;
@@ -55,11 +59,17 @@ export default function Header({ user, onLogout }: HeaderProps) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Fermer le menu mobile lors d'un changement de route
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
       setSearchQuery('');
+      setIsMobileMenuOpen(false);
     }
   };
 
@@ -70,220 +80,238 @@ export default function Header({ user, onLogout }: HeaderProps) {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         isScrolled
-          ? 'bg-cream/95 backdrop-blur-md shadow-light'
-          : 'bg-cream'
+          ? 'bg-white/80 backdrop-blur-xl shadow-sm border-b border-gray-100 py-1'
+          : 'bg-gradient-to-b from-white/90 to-transparent backdrop-blur-sm border-b border-transparent py-2'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-18 lg:h-20">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-10 h-10 bg-forest rounded-full flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-serif text-xl font-bold text-forest hidden sm:block">
-              BiblioCongo
-            </span>
-          </Link>
+        <div className="flex items-center justify-between h-16 lg:h-20">
+          
+          {/* Logo (Image Only) */}
+          <Link to="/" className="flex items-center flex-shrink-0 group">
+  <img 
+    src={logoImage}
+    alt="BiblioCongo Logo" 
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-1">
+    className="h-15 sm:h-16 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+  />
+</Link>
+
+          {/* Navigation Desktop */}
+          <nav className="hidden xl:flex items-center gap-2 mx-8">
             {navLinks.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}
-                className={`relative px-4 py-2 text-sm font-medium transition-colors rounded-lg ${
+                className={`relative px-4 py-2.5 text-sm font-bold transition-colors rounded-full ${
                   isActive(link.path)
-                    ? 'text-forest bg-forest/10'
-                    : 'text-gray-dark hover:text-forest hover:bg-forest/5'
+                    ? 'text-forest'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
                 {link.label}
                 {isActive(link.path) && (
                   <motion.div
-                    layoutId="activeNav"
-                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-gold rounded-full"
+                    layoutId="activeNavIndicator"
+                    className="absolute bottom-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-gold rounded-full"
+                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                   />
                 )}
               </Link>
             ))}
           </nav>
 
-          {/* Search Bar - Desktop */}
-          <form
-            onSubmit={handleSearch}
-            className="hidden md:flex items-center flex-1 max-w-md mx-4 lg:mx-8"
-          >
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-medium" />
+          {/* Barre de recherche & Actions Right */}
+          <div className="flex items-center justify-end flex-1 gap-3 sm:gap-6">
+            
+            {/* Search Bar - Desktop */}
+            <form
+              onSubmit={handleSearch}
+              className="hidden lg:flex items-center flex-1 max-w-xs xl:max-w-sm relative group"
+            >
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search className="w-4 h-4 text-gray-400 group-focus-within:text-forest transition-colors" />
+              </div>
               <input
                 type="text"
-                placeholder="Rechercher des livres, auteurs..."
+                placeholder="Rechercher..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-light rounded-full text-sm focus:outline-none focus:border-forest focus:ring-2 focus:ring-forest/20 transition-all"
+                className="w-full pl-11 pr-4 py-2.5 bg-gray-50/50 border border-gray-200 hover:border-gray-300 rounded-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-forest focus:ring-4 focus:ring-forest/10 transition-all duration-300"
               />
-            </div>
-          </form>
+            </form>
 
-          {/* Right Section */}
-          <div className="flex items-center gap-2 sm:gap-4">
-            {/* Search Button - Mobile */}
+            {/* Mobile Search Icon */}
             <button
               onClick={() => navigate('/search')}
-              className="md:hidden p-2 text-gray-dark hover:text-forest transition-colors"
+              className="lg:hidden p-2 text-gray-500 hover:text-forest hover:bg-gray-50 rounded-full transition-all"
             >
               <Search className="w-5 h-5" />
             </button>
 
             {user ? (
-              <>
+              <div className="flex items-center gap-3 sm:gap-5">
                 {/* Notifications */}
-                <button className="relative p-2 text-gray-dark hover:text-forest transition-colors hidden sm:block">
+                <button className="relative p-2 text-gray-500 hover:text-forest hover:bg-forest/5 rounded-full transition-all hidden sm:flex items-center justify-center">
                   <Bell className="w-5 h-5" />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-gold rounded-full" />
+                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full animate-pulse" />
                 </button>
 
-                {/* User Menu */}
+                {/* User Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex items-center gap-2 p-1 rounded-full hover:bg-forest/5 transition-colors">
-                      <Avatar className="w-8 h-8 border-2 border-gold">
-                        <AvatarImage src={user.avatar} alt={user.first_name} />
-                        <AvatarFallback className="bg-forest text-white text-sm">
+                    <button className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-forest/20 transition-all group">
+                      <Avatar className="w-9 h-9 border-2 border-transparent group-hover:border-gold transition-colors">
+                        <AvatarImage src={user.avatar} alt={user.first_name} className="object-cover" />
+                        <AvatarFallback className="bg-forest text-white text-sm font-bold">
                           {user.first_name?.[0]}{user.last_name?.[0]}
                         </AvatarFallback>
                       </Avatar>
-                      <ChevronDown className="w-4 h-4 text-gray-medium hidden sm:block" />
+                      <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-forest transition-colors hidden sm:block" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <div className="px-3 py-2 border-b border-gray-light">
-                      <p className="font-medium text-sm">{user.first_name} {user.last_name}</p>
-                      <p className="text-xs text-gray-medium">@{user.username}</p>
+                  <DropdownMenuContent align="end" className="w-64 rounded-2xl p-2 shadow-xl border-gray-100">
+                    <div className="px-4 py-3 bg-gray-50 rounded-xl mb-2">
+                      <p className="font-bold text-gray-900 line-clamp-1">{user.first_name} {user.last_name}</p>
+                      <p className="text-xs font-medium text-gray-500 line-clamp-1">@{user.username}</p>
                     </div>
-                    <DropdownMenuItem asChild>
-                      <Link to="/profile" className="cursor-pointer">
-                        <User className="w-4 h-4 mr-2" />
-                        Mon Profil
+                    <DropdownMenuItem asChild className="rounded-lg cursor-pointer hover:bg-forest/5">
+                      <Link to="/profile" className="flex items-center py-2.5">
+                        <User className="w-4 h-4 mr-3 text-gray-400" />
+                        <span className="font-medium text-gray-700">Mon Profil</span>
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/library" className="cursor-pointer">
-                        <Library className="w-4 h-4 mr-2" />
-                        Ma Bibliothèque
+                    <DropdownMenuItem asChild className="rounded-lg cursor-pointer hover:bg-forest/5">
+                      <Link to="/settings" className="flex items-center py-2.5">
+                        <Settings className="w-4 h-4 mr-3 text-gray-400" />
+                        <span className="font-medium text-gray-700">Parametres</span>
                       </Link>
                     </DropdownMenuItem>
-                    {user.role_id === 2 && (
-                      <DropdownMenuItem asChild>
-                        <Link to="/author/dashboard" className="cursor-pointer">
-                          <BookOpen className="w-4 h-4 mr-2" />
-                          Espace Auteur
+                    <DropdownMenuItem asChild className="rounded-lg cursor-pointer hover:bg-forest/5">
+                      <Link to="/library" className="flex items-center py-2.5">
+                        <Library className="w-4 h-4 mr-3 text-gray-400" />
+                        <span className="font-medium text-gray-700">Ma Bibliothèque</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    {canAccessAuthorSpace(user) && (
+                      <DropdownMenuItem asChild className="rounded-lg cursor-pointer hover:bg-gold/10 text-gold-dark mt-1">
+                        <Link to="/author/dashboard" className="flex items-center py-2.5">
+                          <LayoutDashboard className="w-4 h-4 mr-3 text-gold" />
+                          <span className="font-bold">Espace Auteur</span>
                         </Link>
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={onLogout} className="cursor-pointer text-red-brick">
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Déconnexion
+                    {canAccessAdminSpace(user) && (
+                      <DropdownMenuItem asChild className="rounded-lg cursor-pointer hover:bg-red-50 text-red-700 mt-1">
+                        <Link to="/admin" className="flex items-center py-2.5">
+                          <Shield className="w-4 h-4 mr-3 text-red-600" />
+                          <span className="font-bold">Administration</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator className="my-2 bg-gray-100" />
+                    <DropdownMenuItem 
+                      onClick={onLogout} 
+                      className="rounded-lg cursor-pointer hover:bg-red-50 text-red-600 focus:text-red-600 focus:bg-red-50"
+                    >
+                      <div className="flex items-center py-2.5">
+                        <LogOut className="w-4 h-4 mr-3" />
+                        <span className="font-bold">Déconnexion</span>
+                      </div>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </>
+              </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <Button
                   variant="ghost"
-                  size="sm"
                   onClick={() => navigate('/login')}
-                  className="hidden sm:flex text-forest hover:text-forest hover:bg-forest/10"
+                  className="hidden sm:flex text-gray-600 hover:text-forest hover:bg-forest/5 rounded-full font-bold px-5"
                 >
                   Connexion
                 </Button>
                 <Button
-                  size="sm"
                   onClick={() => navigate('/register')}
-                  className="bg-forest hover:bg-forest-dark text-white"
+                  className="bg-forest hover:bg-forest-dark text-white rounded-full font-bold px-6 shadow-md shadow-forest/20 hover:shadow-lg hover:-translate-y-0.5 transition-all"
                 >
                   S'inscrire
                 </Button>
               </div>
             )}
 
-            {/* Mobile Menu Button */}
+            {/* Mobile Hamburger Button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2 text-gray-dark hover:text-forest transition-colors"
+              className="xl:hidden p-2 text-gray-600 hover:text-forest bg-gray-50 hover:bg-forest/10 rounded-full transition-all"
             >
-              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Full-Screen Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
+            animate={{ opacity: 1, height: '100vh' }}
             exit={{ opacity: 0, height: 0 }}
-            className="lg:hidden bg-white border-t border-gray-light"
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="xl:hidden fixed top-0 left-0 right-0 bottom-0 bg-white/95 backdrop-blur-xl z-[-1] pt-24 px-4 pb-10 overflow-y-auto"
           >
-            <div className="px-4 py-4 space-y-2">
+            <div className="flex flex-col h-full max-w-md mx-auto">
+              
               {/* Mobile Search */}
-              <form onSubmit={handleSearch} className="mb-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-medium" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-light rounded-lg text-sm focus:outline-none focus:border-forest"
-                  />
+              <form onSubmit={handleSearch} className="mb-8 relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search className="w-5 h-5 text-gray-400 group-focus-within:text-forest" />
                 </div>
+                <input
+                  type="text"
+                  placeholder="Rechercher dans le catalogue..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl text-lg text-gray-900 focus:outline-none focus:border-forest focus:bg-white transition-colors shadow-sm"
+                />
               </form>
 
               {/* Mobile Nav Links */}
-              {navLinks.map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    isActive(link.path)
-                      ? 'bg-forest/10 text-forest'
-                      : 'text-gray-dark hover:bg-gray-50'
-                  }`}
-                >
-                  <link.icon className="w-5 h-5" />
-                  {link.label}
-                </Link>
-              ))}
+              <nav className="flex flex-col gap-2 flex-1">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    className={`flex items-center gap-4 px-5 py-4 rounded-2xl transition-all ${
+                      isActive(link.path)
+                        ? 'bg-forest text-white shadow-md shadow-forest/20'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-forest'
+                    }`}
+                  >
+                    <link.icon className={`w-6 h-6 ${isActive(link.path) ? 'text-white' : 'text-gray-400'}`} />
+                    <span className="font-bold text-lg">{link.label}</span>
+                  </Link>
+                ))}
+              </nav>
 
+              {/* Mobile Auth Actions */}
               {!user && (
-                <div className="pt-4 border-t border-gray-light space-y-2">
+                <div className="mt-auto pt-8 flex flex-col gap-3">
                   <Button
                     variant="outline"
-                    className="w-full border-forest text-forest"
-                    onClick={() => {
-                      navigate('/login');
-                      setIsMobileMenuOpen(false);
-                    }}
+                    className="w-full rounded-2xl py-6 text-lg border-gray-200 text-gray-700 font-bold"
+                    onClick={() => navigate('/login')}
                   >
-                    Connexion
+                    Se connecter
                   </Button>
                   <Button
-                    className="w-full bg-forest hover:bg-forest-dark text-white"
-                    onClick={() => {
-                      navigate('/register');
-                      setIsMobileMenuOpen(false);
-                    }}
+                    className="w-full rounded-2xl py-6 text-lg bg-forest hover:bg-forest-dark text-white font-bold shadow-lg shadow-forest/20"
+                    onClick={() => navigate('/register')}
                   >
-                    S'inscrire
+                    Créer un compte
                   </Button>
                 </div>
               )}

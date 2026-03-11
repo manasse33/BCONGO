@@ -26,9 +26,10 @@ interface RegisterPageProps {
     password: string;
     password_confirmation: string;
   }) => Promise<boolean>;
+  onSocialLogin: (provider: 'google' | 'facebook', accessToken: string) => Promise<boolean>;
 }
 
-export default function RegisterPage({ onRegister }: RegisterPageProps) {
+export default function RegisterPage({ onRegister, onSocialLogin }: RegisterPageProps) {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     first_name: '',
@@ -74,6 +75,19 @@ export default function RegisterPage({ onRegister }: RegisterPageProps) {
     const success = await onRegister(formData);
     if (!success) {
       setError('Une erreur est survenue. Veuillez réessayer.');
+    }
+    setIsLoading(false);
+  };
+
+  const handleSocialAuth = async (provider: 'google' | 'facebook') => {
+    const accessToken = window.prompt(`Collez le token ${provider} ici`);
+    if (!accessToken) return;
+
+    setError('');
+    setIsLoading(true);
+    const success = await onSocialLogin(provider, accessToken);
+    if (!success) {
+      setError(`Inscription ${provider} impossible.`);
     }
     setIsLoading(false);
   };
@@ -315,11 +329,11 @@ export default function RegisterPage({ onRegister }: RegisterPageProps) {
 
           {/* Social Register */}
           <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" disabled={isLoading} onClick={() => handleSocialAuth('google')}>
               <Chrome className="w-5 h-5 mr-2" />
               Google
             </Button>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" disabled={isLoading} onClick={() => handleSocialAuth('facebook')}>
               <Facebook className="w-5 h-5 mr-2" />
               Facebook
             </Button>
