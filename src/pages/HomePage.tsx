@@ -74,13 +74,13 @@ const CategoryCard = ({ icon: Icon, title, href, delay }: { icon: any; title: st
   >
     <Link
       to={href}
-      className="group flex flex-col items-center p-8 bg-white/60 backdrop-blur-sm rounded-3xl border border-gray-100 hover:border-gold/50 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-500 ease-out relative overflow-hidden"
+      className="group flex flex-col items-center p-5 sm:p-8 bg-white/60 backdrop-blur-sm rounded-3xl border border-gray-100 hover:border-gold/50 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-500 ease-out relative overflow-hidden"
     >
       <div className="absolute inset-0 bg-gradient-to-br from-forest/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      <div className="w-20 h-20 bg-forest/5 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-forest group-hover:scale-110 transition-all duration-500 z-10">
-        <Icon className="w-10 h-10 text-forest group-hover:text-white transition-colors duration-500" />
+      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-forest/5 rounded-2xl flex items-center justify-center mb-4 sm:mb-5 group-hover:bg-forest group-hover:scale-110 transition-all duration-500 z-10">
+        <Icon className="w-8 h-8 sm:w-10 sm:h-10 text-forest group-hover:text-white transition-colors duration-500" />
       </div>
-      <h3 className="font-serif text-lg font-bold text-gray-800 mb-4 text-center z-10">{title}</h3>
+      <h3 className="font-serif text-base sm:text-lg font-bold text-gray-800 mb-4 text-center z-10">{title}</h3>
       <Button 
         variant="outline" 
         size="sm"
@@ -115,7 +115,7 @@ const BookCard = ({ book, index }: { book: Book; index: number }) => (
           </Badge>
         )}
       </div>
-      <div className="p-5 flex flex-col flex-grow">
+      <div className="p-4 sm:p-5 flex flex-col flex-grow">
         <h3 className="font-serif font-bold text-gray-900 line-clamp-2 mb-1 group-hover:text-forest transition-colors">
           {book.title}
         </h3>
@@ -153,14 +153,14 @@ const AuthorCard = ({ author, index }: { author: User; index: number }) => (
     whileInView={{ opacity: 1, x: 0 }}
     viewport={{ once: true }}
     transition={{ duration: 0.5, delay: index * 0.15 }}
-    className="group flex items-center gap-5 bg-white rounded-2xl p-5 border border-gray-100 hover:border-gold/30 hover:shadow-xl hover:shadow-gold/5 transition-all duration-300"
+    className="group flex items-center gap-4 sm:gap-5 bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 hover:border-gold/30 hover:shadow-xl hover:shadow-gold/5 transition-all duration-300"
   >
     <div className="relative">
       <div className="absolute inset-0 bg-gold rounded-full scale-110 opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
       <img
         src={author.avatar}
         alt={`${author.first_name} ${author.last_name}`}
-        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-gold/50 shadow-sm relative z-10"
+        className="w-14 h-14 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-gold/50 shadow-sm relative z-10"
       />
     </div>
     <div className="flex-1">
@@ -186,7 +186,7 @@ const ChallengeBanner = ({ challenge }: { challenge: ReadingChallenge }) => (
     whileInView={{ opacity: 1, scale: 1 }}
     viewport={{ once: true }}
     transition={{ duration: 0.6 }}
-    className="relative bg-gradient-to-br from-gold via-yellow-400 to-yellow-500 rounded-3xl p-8 lg:p-10 overflow-hidden shadow-2xl shadow-gold/20 group"
+    className="relative bg-gradient-to-br from-gold via-yellow-400 to-yellow-500 rounded-3xl p-5 sm:p-8 lg:p-10 overflow-hidden shadow-2xl shadow-gold/20 group"
   >
     {/* Decorative background elements */}
     <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-white/20 rounded-full blur-2xl transform group-hover:scale-150 transition-transform duration-700" />
@@ -232,7 +232,7 @@ const StatsSection = ({ stats }: { stats: HomeStats }) => {
   ];
 
   return (
-    <section className="relative py-20 bg-forest overflow-hidden">
+    <section className="relative py-12 md:py-20 bg-forest overflow-hidden mx-4 md:mx-0 rounded-3xl md:rounded-none">
       <div className="absolute inset-0 opacity-5">
         <AfricanPattern className="w-full h-full object-cover" />
       </div>
@@ -347,9 +347,9 @@ export default function HomePage({ user }: HomePageProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50/50 selection:bg-forest selection:text-white">
+    <div className="app-shell md:bg-gray-50/50 selection:bg-forest selection:text-white">
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-cream to-gray-50/50 pt-20 pb-16">
+      <section className="relative min-h-[70vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-cream to-gray-50/50 pt-10 md:pt-20 pb-10 md:pb-16">
         {/* Decorative Blobs */}
         <div className="absolute top-20 left-10 w-72 h-72 bg-gold/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob" />
         <div className="absolute top-40 right-10 w-72 h-72 bg-forest/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000" />
@@ -370,16 +370,16 @@ export default function HomePage({ user }: HomePageProps) {
             {/* <Badge className="bg-forest/10 text-forest border-none mb-6 px-4 py-1.5 text-sm font-medium">
               ✨ La 1ère bibliothèque numérique du Congo
             </Badge> */}
-            <h1 className="font-serif text-5xl sm:text-6xl lg:text-7xl font-extrabold text-gray-900 mb-6 leading-[1.1] tracking-tight">
+            <h1 className="font-serif text-4xl sm:text-5xl lg:text-7xl font-extrabold text-gray-900 mb-5 sm:mb-6 leading-[1.1] tracking-tight">
               Votre Passerelle vers <span className="text-transparent bg-clip-text bg-gradient-to-r from-forest to-green-600">le Savoir</span>
             </h1>
-            <p className="text-lg sm:text-xl text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-xl text-gray-600 mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed">
               Explorez un monde d'histoires, de connaissances et d'idées. 
               Accédez à des milliers de ressources éducatives et culturelles.
             </p>
 
             {/* Search Bar - Modernized with Glassmorphism */}
-            <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-10 relative group">
+            <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-8 sm:mb-10 relative group">
               <div className="absolute inset-0 bg-gold/20 rounded-full blur-xl transition-all duration-300 group-hover:bg-gold/30" />
               <div className="relative flex items-center bg-white/90 backdrop-blur-md border border-gray-200 rounded-full p-2 shadow-xl focus-within:ring-2 focus-within:ring-forest/50 transition-all">
                 <Search className="w-6 h-6 text-gray-400 ml-4 hidden sm:block" />
@@ -388,7 +388,7 @@ export default function HomePage({ user }: HomePageProps) {
                   placeholder="Rechercher des livres, auteurs, genres..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 sm:px-6 py-3 bg-transparent text-gray-900 text-lg focus:outline-none placeholder:text-gray-400"
+                  className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-transparent text-gray-900 text-base sm:text-lg focus:outline-none placeholder:text-gray-400"
                 />
                 <button
                   type="submit"
@@ -442,31 +442,34 @@ export default function HomePage({ user }: HomePageProps) {
       </section>
 
       {/* Categories Section */}
-      <section className="py-20 relative z-20 -mt-10">
+      <section className="py-10 md:py-20 relative z-20 -mt-6 md:-mt-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
-          >
-            {categories.map((category, index) => (
-              <CategoryCard
-                key={category.title}
-                icon={category.icon}
-                title={category.title}
-                href={category.href}
-                delay={index * 0.1}
-              />
-            ))}
-          </motion.div>
+          <div className="app-section p-4 sm:p-6 md:p-0 md:bg-transparent md:border-none md:shadow-none md:rounded-none">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6"
+            >
+              {categories.map((category, index) => (
+                <CategoryCard
+                  key={category.title}
+                  icon={category.icon}
+                  title={category.title}
+                  href={category.href}
+                  delay={index * 0.1}
+                />
+              ))}
+            </motion.div>
+          </div>
         </div>
       </section>
 
       {/* Featured Books Section */}
-      <section className="py-20 bg-white relative">
+      <section className="py-10 md:py-20 bg-white relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="app-section p-4 sm:p-6 md:p-0 md:bg-transparent md:border-none md:shadow-none md:rounded-none">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-12 gap-4">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -478,7 +481,7 @@ export default function HomePage({ user }: HomePageProps) {
               </h2>
               <p className="text-gray-500">Sélectionnés avec soin pour votre plaisir de lecture.</p>
             </motion.div>
-            <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-3">
               <button
                 onClick={() => scrollBooks('left')}
                 className="w-12 h-12 rounded-full border border-gray-200 flex items-center justify-center hover:bg-forest hover:text-white hover:border-forest transition-all shadow-sm hover:shadow-md"
@@ -500,11 +503,11 @@ export default function HomePage({ user }: HomePageProps) {
             
             <div
               ref={scrollRef}
-              className="flex gap-6 lg:gap-8 overflow-x-auto scrollbar-hide pb-10 pt-4 -mx-4 px-4 snap-x"
+              className="flex gap-4 sm:gap-6 lg:gap-8 overflow-x-auto scrollbar-hide pb-8 sm:pb-10 pt-4 -mx-4 px-4 snap-x"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {featuredBooks.map((book, index) => (
-                <div key={book.id} className="flex-shrink-0 w-64 sm:w-72 snap-start">
+                <div key={book.id} className="flex-shrink-0 w-60 sm:w-72 snap-start">
                   <BookCard book={book} index={index} />
                 </div>
               ))}
@@ -521,13 +524,15 @@ export default function HomePage({ user }: HomePageProps) {
               <Link to="/library">Voir Tout le Catalogue</Link>
             </Button>
           </div>
+          </div>
         </div>
       </section>
 
       {/* Trending Authors & Challenge Section */}
-      <section className="py-20 bg-gray-50/50">
+      <section className="py-10 md:py-20 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+          <div className="app-section p-4 sm:p-6 md:p-0 md:bg-transparent md:border-none md:shadow-none md:rounded-none">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
             {/* Authors */}
             <div>
               <motion.div
@@ -536,7 +541,7 @@ export default function HomePage({ user }: HomePageProps) {
                 viewport={{ once: true }}
                 className="mb-10"
               >
-                <h2 className="font-serif text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+                <h2 className="font-serif text-2xl sm:text-4xl font-bold text-gray-900 mb-2">
                   Auteurs en Tendance
                 </h2>
                 <p className="text-gray-500">Découvrez les créateurs qui passionnent nos lecteurs.</p>
@@ -554,7 +559,7 @@ export default function HomePage({ user }: HomePageProps) {
                 initial={{ opacity: 0, x: 20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                className="font-serif text-3xl sm:text-4xl font-bold text-gray-900 mb-10 hidden lg:block"
+                className="font-serif text-2xl sm:text-4xl font-bold text-gray-900 mb-6 lg:mb-10 hidden lg:block"
               >
                 Prêt pour un défi ?
               </motion.h2>
@@ -562,20 +567,21 @@ export default function HomePage({ user }: HomePageProps) {
             </div>
           </div>
         </div>
+        </div>
       </section>
 
       {/* Stats Section */}
       <StatsSection stats={homeStats} />
 
       {/* CTA Section */}
-      <section className="py-24 bg-white relative">
+      <section className="py-12 md:py-24 bg-white relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.7 }}
-            className="bg-forest rounded-[2.5rem] p-10 lg:p-20 text-center relative overflow-hidden shadow-2xl shadow-forest/20"
+            className="bg-forest rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-10 lg:p-20 text-center relative overflow-hidden shadow-2xl shadow-forest/20"
           >
             {/* Rich Background Pattern */}
             <div className="absolute inset-0 opacity-10 mix-blend-overlay">
@@ -591,7 +597,7 @@ export default function HomePage({ user }: HomePageProps) {
               <h2 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-6 tracking-tight">
                 Devenez Auteur
               </h2>
-              <p className="text-white/80 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed font-light">
+              <p className="text-white/80 text-base sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed font-light">
                 Partagez vos histoires avec le monde. Publiez vos livres, poèmes et nouvelles 
                 sur la première plateforme d'édition numérique du Congo.
               </p>
@@ -621,4 +627,8 @@ export default function HomePage({ user }: HomePageProps) {
     </div>
   );
 }
+
+
+
+
 

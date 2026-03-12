@@ -91,13 +91,12 @@ export default function Header({ user, onLogout }: HeaderProps) {
           
           {/* Logo (Image Only) */}
           <Link to="/" className="flex items-center flex-shrink-0 group">
-  <img 
-    src={logoImage}
-    alt="BiblioCongo Logo" 
-
-    className="h-15 sm:h-16 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
-  />
-</Link>
+            <img
+              src={logoImage}
+              alt="BiblioCongo Logo"
+              className="h-10 sm:h-12 lg:h-14 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+            />
+          </Link>
 
           {/* Navigation Desktop */}
           <nav className="hidden xl:flex items-center gap-2 mx-8">
@@ -124,12 +123,12 @@ export default function Header({ user, onLogout }: HeaderProps) {
           </nav>
 
           {/* Barre de recherche & Actions Right */}
-          <div className="flex items-center justify-end flex-1 gap-3 sm:gap-6">
+          <div className="flex items-center justify-end flex-1 gap-2 sm:gap-4 lg:gap-6 min-w-0">
             
             {/* Search Bar - Desktop */}
             <form
               onSubmit={handleSearch}
-              className="hidden lg:flex items-center flex-1 max-w-xs xl:max-w-sm relative group"
+              className="hidden md:flex items-center flex-1 max-w-[14rem] lg:max-w-xs xl:max-w-sm relative group"
             >
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Search className="w-4 h-4 text-gray-400 group-focus-within:text-forest transition-colors" />
@@ -146,15 +145,19 @@ export default function Header({ user, onLogout }: HeaderProps) {
             {/* Mobile Search Icon */}
             <button
               onClick={() => navigate('/search')}
-              className="lg:hidden p-2 text-gray-500 hover:text-forest hover:bg-gray-50 rounded-full transition-all"
+              className="md:hidden p-2 text-gray-500 hover:text-forest hover:bg-gray-50 rounded-full transition-all"
+              aria-label="Rechercher"
             >
               <Search className="w-5 h-5" />
             </button>
 
             {user ? (
-              <div className="flex items-center gap-3 sm:gap-5">
+              <div className="flex items-center gap-2 sm:gap-4">
                 {/* Notifications */}
-                <button className="relative p-2 text-gray-500 hover:text-forest hover:bg-forest/5 rounded-full transition-all hidden sm:flex items-center justify-center">
+                <button
+                  className="relative p-2 text-gray-500 hover:text-forest hover:bg-forest/5 rounded-full transition-all hidden sm:flex items-center justify-center"
+                  aria-label="Notifications"
+                >
                   <Bell className="w-5 h-5" />
                   <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full animate-pulse" />
                 </button>
@@ -235,7 +238,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
                 </Button>
                 <Button
                   onClick={() => navigate('/register')}
-                  className="bg-forest hover:bg-forest-dark text-white rounded-full font-bold px-6 shadow-md shadow-forest/20 hover:shadow-lg hover:-translate-y-0.5 transition-all"
+                  className="bg-forest hover:bg-forest-dark text-white rounded-full font-bold px-4 sm:px-6 shadow-md shadow-forest/20 hover:shadow-lg hover:-translate-y-0.5 transition-all"
                 >
                   S'inscrire
                 </Button>
@@ -246,6 +249,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="xl:hidden p-2 text-gray-600 hover:text-forest bg-gray-50 hover:bg-forest/10 rounded-full transition-all"
+              aria-label="Menu"
             >
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -261,7 +265,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
             animate={{ opacity: 1, height: '100vh' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="xl:hidden fixed top-0 left-0 right-0 bottom-0 bg-white/95 backdrop-blur-xl z-[-1] pt-24 px-4 pb-10 overflow-y-auto"
+            className="xl:hidden fixed top-0 left-0 right-0 bottom-0 bg-white/95 backdrop-blur-xl z-40 pt-24 px-4 pb-10 overflow-y-auto"
           >
             <div className="flex flex-col h-full max-w-md mx-auto">
               

@@ -62,7 +62,7 @@ export default function PublicUserPage({ currentUser }: PublicUserPageProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-cream flex items-center justify-center">
+      <div className="min-h-screen app-shell bg-cream flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forest" />
       </div>
     );
@@ -70,7 +70,7 @@ export default function PublicUserPage({ currentUser }: PublicUserPageProps) {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-cream flex items-center justify-center">
+      <div className="min-h-screen app-shell bg-cream flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-medium">Profil introuvable.</p>
           <Link to="/social" className="text-forest hover:underline text-sm">
@@ -82,7 +82,7 @@ export default function PublicUserPage({ currentUser }: PublicUserPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen app-shell bg-cream">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
         <section className="bg-white border border-gray-light rounded-2xl p-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -142,3 +142,4 @@ export default function PublicUserPage({ currentUser }: PublicUserPageProps) {
     </div>
   );
 }
+

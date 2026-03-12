@@ -962,7 +962,7 @@ export default function SocialPage({ user }: SocialPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50/50 selection:bg-forest selection:text-white pb-20">
+    <div className="min-h-screen app-shell bg-gray-50/50 selection:bg-forest selection:text-white pb-20">
       {/* Header Premium */}
       <div className="relative bg-white border-b border-gray-200 overflow-hidden">
         <div className="absolute top-0 left-0 w-96 h-96 bg-forest/5 rounded-full blur-3xl -translate-y-1/2 -translate-x-1/3" />
@@ -1433,3 +1433,4 @@ export default function SocialPage({ user }: SocialPageProps) {
     </div>
   );
 }
+

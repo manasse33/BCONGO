@@ -230,7 +230,7 @@ export default function ProfilePage({ user }: ProfilePageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen app-shell bg-cream">
       <Dialog
         open={isEditOpen}
         onOpenChange={(open) => {
@@ -688,3 +688,4 @@ export default function ProfilePage({ user }: ProfilePageProps) {
     </div>
   );
 }
+

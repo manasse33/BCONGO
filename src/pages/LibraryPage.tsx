@@ -203,13 +203,14 @@ export default function LibraryPage() {
     (filters.isFree !== null ? 1 : 0);
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
+    <div className="app-shell md:bg-gray-50/50">
       {/* Header enrichi */}
       <div className="relative bg-white border-b border-gray-200 overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-forest/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-        <div className="absolute bottom-0 left-0 w-72 h-72 bg-gold/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-forest/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 hidden md:block" />
+        <div className="absolute bottom-0 left-0 w-72 h-72 bg-gold/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4 hidden md:block" />
         
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 relative z-10">
+          <div className="app-section p-5 md:p-0 md:bg-transparent md:border-none md:shadow-none md:rounded-none">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -223,11 +224,12 @@ export default function LibraryPage() {
               Découvrez notre vaste collection de <span className="font-semibold text-forest">{books.length}+</span> ressources éducatives, romans et documents académiques.
             </p>
           </motion.div>
+          </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6 app-section p-3 md:p-0 md:bg-transparent md:border-none md:shadow-none md:rounded-none">
           <Badge variant="outline">Bibliotheque: {libraryCounts.all}</Badge>
           <Badge variant="outline">A lire: {libraryCounts.toRead}</Badge>
           <Badge variant="outline">En cours: {libraryCounts.reading}</Badge>
@@ -352,7 +354,7 @@ export default function LibraryPage() {
           {/* Main Content */}
           <div className="flex-1 min-w-0">
             {/* Toolbar - Sticky on mobile for better UX */}
-            <div className="sticky top-0 z-20 bg-gray-50/95 backdrop-blur-xl py-4 mb-6 border-b border-gray-200 lg:static lg:bg-transparent lg:border-none lg:py-0 lg:mb-8">
+            <div className="sticky top-2 z-20 bg-white/90 backdrop-blur-xl py-3 mb-5 border border-gray-200 rounded-2xl px-3 md:top-0 md:bg-gray-50/95 md:rounded-none md:px-0 md:border-b md:py-4 md:mb-6 lg:static lg:bg-transparent lg:border-none lg:py-0 lg:mb-8">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 
                 {/* Search - Modernized */}
@@ -655,3 +657,8 @@ function BookListCard({ book }: { book: Book }) {
     </div>
   );
 }
+
+
+
+
+

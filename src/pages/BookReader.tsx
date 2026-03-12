@@ -512,7 +512,7 @@ export default function BookReader({ user }: BookReaderProps) {
 
   if (!book) {
     return (
-      <div className="min-h-screen bg-cream flex items-center justify-center">
+      <div className="min-h-screen app-shell bg-cream flex items-center justify-center">
         <div className="text-center">
           <BookOpen className="w-16 h-16 text-gray-light mx-auto mb-4" />
           <p className="text-gray-medium">Livre non trouve</p>
@@ -850,3 +850,4 @@ export default function BookReader({ user }: BookReaderProps) {
     </div>
   );
 }
+

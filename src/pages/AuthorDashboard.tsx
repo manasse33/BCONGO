@@ -499,7 +499,7 @@ export default function AuthorDashboard({ user }: AuthorDashboardProps) {
   );
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen app-shell bg-cream">
       {/* Header */}
       <div className="bg-white border-b border-gray-light">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -641,3 +641,4 @@ export default function AuthorDashboard({ user }: AuthorDashboardProps) {
     </div>
   );
 }
+

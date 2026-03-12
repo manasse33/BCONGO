@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 // Layout
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import MobileTabBar from '@/components/layout/MobileTabBar';
 
 // Pages
 import HomePage from '@/pages/HomePage';
@@ -147,7 +148,7 @@ function App() {
       <div className="min-h-screen bg-cream flex flex-col">
         <Header user={user} onLogout={handleLogout} />
         
-        <main className="flex-1 pt-18 lg:pt-20">
+        <main className="flex-1 pt-16 lg:pt-20 pb-24 md:pb-0">
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<HomePage user={user} />} />
@@ -234,7 +235,10 @@ function App() {
           </Routes>
         </main>
 
-        <Footer />
+        <div className="hidden md:block">
+          <Footer />
+        </div>
+        <MobileTabBar user={user} />
         <Toaster position="top-right" richColors />
       </div>
     </Router>

@@ -111,14 +111,14 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="min-h-screen bg-cream">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="app-shell">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         {/* Search Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-8"
+          className="mb-6 md:mb-8 app-section p-5 md:p-0 md:bg-transparent md:border-none md:shadow-none md:rounded-none"
         >
           <h1 className="font-serif text-3xl lg:text-4xl font-bold text-gray-dark mb-6">
             Recherche
@@ -130,7 +130,7 @@ export default function SearchPage() {
               placeholder="Rechercher des livres, auteurs, genres..."
               value={query}
               onChange={(e) => handleSearch(e.target.value)}
-              className="w-full pl-12 pr-12 py-4 bg-white border-2 border-gray-light rounded-xl text-lg focus:outline-none focus:border-forest transition-colors"
+              className="w-full pl-12 pr-12 py-3 bg-white border-2 border-gray-light rounded-2xl text-base sm:text-lg focus:outline-none focus:border-forest transition-colors"
               autoFocus
             />
             {query && (
@@ -256,7 +256,7 @@ export default function SearchPage() {
             transition={{ duration: 0.3 }}
           >
             {/* Recent Searches */}
-            <div className="mb-8">
+            <div className="mb-6 md:mb-8 app-section p-4 md:p-0 md:bg-transparent md:border-none md:shadow-none md:rounded-none">
               <div className="flex items-center gap-2 mb-4">
                 <Clock className="w-5 h-5 text-gray-medium" />
                 <h2 className="font-semibold text-gray-dark">Recherches Recentes</h2>
@@ -275,7 +275,7 @@ export default function SearchPage() {
             </div>
 
             {/* Trending Searches */}
-            <div className="mb-8">
+            <div className="mb-6 md:mb-8 app-section p-4 md:p-0 md:bg-transparent md:border-none md:shadow-none md:rounded-none">
               <div className="flex items-center gap-2 mb-4">
                 <TrendingUp className="w-5 h-5 text-gray-medium" />
                 <h2 className="font-semibold text-gray-dark">Tendances</h2>
@@ -294,7 +294,7 @@ export default function SearchPage() {
             </div>
 
             {/* Browse by Genre */}
-            <div>
+            <div className="app-section p-4 md:p-0 md:bg-transparent md:border-none md:shadow-none md:rounded-none">
               <h2 className="font-semibold text-gray-dark mb-4">Parcourir par Genre</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {genres.slice(0, 6).map((genre) => (
@@ -311,7 +311,7 @@ export default function SearchPage() {
             </div>
 
             {/* Browse by Publisher */}
-            <div className="mt-8">
+            <div className="mt-6 md:mt-8 app-section p-4 md:p-0 md:bg-transparent md:border-none md:shadow-none md:rounded-none">
               <h2 className="font-semibold text-gray-dark mb-4">Parcourir par Editeur</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {publishers.slice(0, 6).map((publisher) => (
@@ -332,3 +332,4 @@ export default function SearchPage() {
     </div>
   );
 }
+

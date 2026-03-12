@@ -351,7 +351,7 @@ export default function ContestsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen app-shell bg-cream">
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-forest to-forest-dark py-16 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -656,3 +656,4 @@ export default function ContestsPage() {
     </div>
   );
 }
+

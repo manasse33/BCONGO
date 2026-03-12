@@ -27,7 +27,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-cream flex items-center justify-center px-4">
+    <div className="min-h-screen app-shell bg-cream flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white border border-gray-light rounded-2xl p-8">
         <h1 className="font-serif text-2xl font-bold text-gray-dark mb-2">Mot de passe oublie</h1>
         <p className="text-sm text-gray-medium mb-6">
@@ -71,3 +71,4 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
+

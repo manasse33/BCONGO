@@ -63,6 +63,22 @@
 }
 
 @layer utilities {
+  .app-shell {
+    @apply min-h-screen text-gray-dark;
+  }
+
+  .app-section {
+    @apply bg-white/95 border border-gray-light rounded-3xl shadow-light;
+  }
+
+  .app-card {
+    @apply bg-white border border-gray-light rounded-2xl shadow-light;
+  }
+
+  .app-header {
+    @apply sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-gray-light/70;
+  }
+
   .text-balance {
     text-wrap: balance;
   }
@@ -131,6 +147,20 @@
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    background: radial-gradient(120% 120% at 0% 0%, #fff 0%, #f6f1e8 40%, #eef4f1 100%);
+  }
+
+  .app-shell {
+    background: radial-gradient(120% 120% at 0% 0%, #fff 0%, #f6f1e8 40%, #eef4f1 100%);
+  }
+
+  .app-section {
+    border-color: rgba(229, 229, 229, 0.6);
   }
 }
 
